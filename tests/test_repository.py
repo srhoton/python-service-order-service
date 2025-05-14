@@ -69,7 +69,7 @@ def mock_aws_clients():
             # Validate required parameters are present
             required_params = ["Application", "Environment", "Configuration", "ClientId"]
             for param in required_params:
-                if param not in kwargs or kwargs[param] is None:
+
                     raise ValueError(f"Missing required parameter: {param}")
             return {"Content": mock_content}
 
@@ -142,7 +142,7 @@ def mock_aws_clients():
             def mock_query(**kwargs: dict) -> dict:
                 items = []
                 index_name = kwargs.get("IndexName")
-                
+
                 # Simple implementation for queries by customer ID
                 if index_name == "CustomerIndex" and "KeyConditionExpression" in kwargs:
                     for _key, item in mock_items.items():
