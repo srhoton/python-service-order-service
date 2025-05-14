@@ -274,46 +274,7 @@ jobs:
           retention-days: 5
         if: github.event_name == 'pull_request'
 
-      - name: Post Plan to PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const planJson = JSON.parse(fs.readFileSync('./terraform/plan.json', 'utf8'));
 
-            let planSummary = '';
-            if (planJson.resource_changes) {
-              const creates = planJson.resource_changes.filter(r => r.change.actions[0] === 'create').length;
-              const updates = planJson.resource_changes.filter(r => r.change.actions[0] === 'update').length;
-              const deletes = planJson.resource_changes.filter(r => r.change.actions[0] === 'delete').length;
-
-              planSummary = `
-              ## Terraform Plan Summary
-
-              🟢 Resources to create: ${creates}
-              🟠 Resources to update: ${updates}
-              🔴 Resources to delete: ${deletes}
-
-              <details><summary>Show details</summary>
-
-              \`\`\`
-              ${require('child_process').execSync('cd ./terraform && terraform show -no-color tfplan').toString()}
-              \`\`\`
-
-              </details>
-              `;
-            } else {
-              planSummary = "## Terraform Plan\n\nNo changes. Infrastructure is up-to-date.";
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: planSummary
-            });
 
   deploy-to-aws:
     name: Deploy to AWS

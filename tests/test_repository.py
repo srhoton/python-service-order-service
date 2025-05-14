@@ -47,6 +47,7 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
+            "AWS_DEFAULT_REGION": "us-east-1",  # Add default region for boto3
         },
     ):
         yield
@@ -74,7 +75,8 @@ def mock_aws_clients():
             return {"Content": mock_content}
 
         mock_appconfig.get_configuration.side_effect = mock_get_config
-        mock_client.return_value = mock_appconfig
+        # Return the mock regardless of arguments (including region)
+        mock_client.side_effect = lambda service, region_name=None, **kwargs: mock_appconfig
 
         # Mock DynamoDB resource
         with patch("boto3.resource") as mock_resource:
@@ -165,7 +167,8 @@ def mock_aws_clients():
             mock_table.update_item.side_effect = mock_update_item
             mock_table.query.side_effect = mock_query
 
-            mock_resource.return_value.Table.return_value = mock_table
+            # Return the mock resource regardless of arguments (including region)
+            mock_resource.side_effect = lambda service, region_name=None, **kwargs: mock.MagicMock(Table=lambda name: mock_table)
 
             yield mock_table
 
