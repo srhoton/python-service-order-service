@@ -85,14 +85,16 @@ def mock_aws_clients():
             mock_items = {}
 
             # Mock put_item to store items
-            def mock_put_item(item, **kwargs: dict) -> dict:
+            def mock_put_item(**kwargs: dict) -> dict:
+                item = kwargs.get("Item", {})
                 pk = item.get("PK")
                 sk = item.get("SK")
                 mock_items[(pk, sk)] = item.copy()
                 return {}
 
             # Mock get_item to retrieve items
-            def mock_get_item(key, **kwargs: dict) -> dict:
+            def mock_get_item(**kwargs: dict) -> dict:
+                key = kwargs.get("Key", {})
                 pk = key.get("PK")
                 sk = key.get("SK")
                 item = mock_items.get((pk, sk))
@@ -101,13 +103,12 @@ def mock_aws_clients():
                 return {}
 
             # Mock update_item to modify items
-            def mock_update_item(
-                key,
-                update_expression,
-                expression_attribute_values,
-                expression_attribute_names=None,
-                **kwargs: dict,
-            ) -> dict:
+            def mock_update_item(**kwargs: dict) -> dict:
+                key = kwargs.get("Key", {})
+                update_expression = kwargs.get("UpdateExpression", "")
+                expression_attribute_values = kwargs.get("ExpressionAttributeValues", {})
+                expression_attribute_names = kwargs.get("ExpressionAttributeNames", None)
+                
                 pk = key.get("PK")
                 sk = key.get("SK")
                 if (pk, sk) not in mock_items:
