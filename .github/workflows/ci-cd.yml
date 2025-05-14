@@ -161,17 +161,8 @@ jobs:
         id: test
         run: |
           echo "Running pytest with JUnit XML reporting..."
-          # Add pytest configuration if needed
-          if [ ! -f "pytest.ini" ]; then
-            cat > pytest.ini <<EOF
-[pytest]
-testpaths = tests
-python_files = test_*.py
-EOF
-          fi
-
           # Run the tests
-          python -m pytest --junitxml=test-results.xml
+          python -m pytest tests --junitxml=test-results.xml
 
       - name: Upload test results
         if: always()
