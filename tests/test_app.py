@@ -27,7 +27,9 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
-            "AWS_DEFAULT_REGION": "us-east-1",  # Add default region for boto3
+            "AWS_DEFAULT_REGION": "us-east-1",
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
         },
     ):
         yield
@@ -37,30 +39,35 @@ def mock_env_vars():
 @pytest.fixture(autouse=True)
 def mock_aws_services():
     """Mock all AWS services for testing."""
-    # Mock AppConfig client
-    with mock.patch("boto3.client") as mock_client:
-        mock_app_config = mock.MagicMock()
-        mock_content = mock.MagicMock()
-        mock_content.read.return_value = json.dumps(
-            {"serviceOrderTableName": "test_service_orders"}
-        )
-        mock_app_config.get_configuration.return_value = {"Content": mock_content}
-        # Return the mock regardless of arguments (including region)
-        mock_client.side_effect = lambda service, region_name=None, **kwargs: mock_app_config
-
-        # Mock DynamoDB
-        with mock.patch("boto3.resource") as mock_resource:
-            mock_table = mock.MagicMock()
-            # Return the mock resource regardless of arguments (including region)
-            mock_resource.side_effect = lambda service, region_name=None, **kwargs: mock.MagicMock(Table=lambda name: mock_table)
-
-            # Set return values for mock table methods
-            mock_table.get_item.return_value = {}
-            mock_table.put_item.return_value = {}
-            mock_table.update_item.return_value = {}
-            mock_table.query.return_value = {"Items": []}
-
-            yield mock_table
+    # Mock AWS configuration to force region
+    with mock.patch("boto3.setup_default_session", autospec=True) as mock_setup:
+        # Explicitly configure boto3 with a region
+        mock.patch("boto3._get_default_session") 
+        
+        # Mock AppConfig client
+        with mock.patch("boto3.client") as mock_client:
+            mock_app_config = mock.MagicMock()
+            mock_content = mock.MagicMock()
+            mock_content.read.return_value = json.dumps(
+                {"serviceOrderTableName": "test_service_orders"}
+            )
+            mock_app_config.get_configuration.return_value = {"Content": mock_content}
+            mock_client.return_value = mock_app_config
+            
+            # Mock DynamoDB
+            with mock.patch("boto3.resource") as mock_resource:
+                mock_table = mock.MagicMock()
+                mock_dynamodb = mock.MagicMock()
+                mock_dynamodb.Table.return_value = mock_table
+                mock_resource.return_value = mock_dynamodb
+                
+                # Set return values for mock table methods
+                mock_table.get_item.return_value = {}
+                mock_table.put_item.return_value = {}
+                mock_table.update_item.return_value = {}
+                mock_table.query.return_value = {"Items": []}
+                
+                yield mock_table
 
 
 # Mock repository for testing

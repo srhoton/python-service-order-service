@@ -48,7 +48,9 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
-            "AWS_DEFAULT_REGION": "us-east-1",  # Add default region for boto3
+            "AWS_DEFAULT_REGION": "us-east-1",
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
         },
     ):
         yield
@@ -58,26 +60,30 @@ def mock_env_vars():
 @pytest.fixture(autouse=True)
 def mock_aws_clients():
     """Mock all AWS clients for testing."""
-    # Mock AppConfig client
-    with patch("boto3.client") as mock_client:
-        mock_appconfig = MagicMock()
-        mock_content = MagicMock()
-        mock_content.read.return_value = json.dumps(
-            {"serviceOrderTableName": "test_service_orders"}
-        )
+    # Mock AWS configuration to force region
+    with patch("boto3.setup_default_session", autospec=True) as mock_setup:
+        # Explicitly configure boto3 with a region
+        patch("boto3._get_default_session")
+        
+        # Mock AppConfig client
+        with patch("boto3.client") as mock_client:
+            mock_appconfig = MagicMock()
+            mock_content = MagicMock()
+            mock_content.read.return_value = json.dumps(
+                {"serviceOrderTableName": "test_service_orders"}
+            )
 
-        # Configure get_configuration to accept required parameters
-        def mock_get_config(**kwargs: dict) -> dict:
-            # Validate required parameters are present
-            required_params = ["Application", "Environment", "Configuration", "ClientId"]
-            for param in required_params:
+            # Configure get_configuration to accept required parameters
+            def mock_get_config(**kwargs: dict) -> dict:
+                # Validate required parameters are present
+                required_params = ["Application", "Environment", "Configuration", "ClientId"]
+                for param in required_params:
+                    if param not in kwargs:
+                        raise ValueError(f"Missing required parameter: {param}")
+                return {"Content": mock_content}
 
-                    raise ValueError(f"Missing required parameter: {param}")
-            return {"Content": mock_content}
-
-        mock_appconfig.get_configuration.side_effect = mock_get_config
-        # Return the mock regardless of arguments (including region)
-        mock_client.side_effect = lambda service, region_name=None, **kwargs: mock_appconfig
+            mock_appconfig.get_configuration.side_effect = mock_get_config
+            mock_client.return_value = mock_appconfig
 
         # Mock DynamoDB resource
         with patch("boto3.resource") as mock_resource:
@@ -168,8 +174,10 @@ def mock_aws_clients():
             mock_table.update_item.side_effect = mock_update_item
             mock_table.query.side_effect = mock_query
 
-            # Return the mock resource regardless of arguments (including region)
-            mock_resource.side_effect = lambda service, region_name=None, **kwargs: MagicMock(Table=lambda name: mock_table)
+            # Create a mock DynamoDB resource with a Table method
+            mock_dynamodb = MagicMock()
+            mock_dynamodb.Table.return_value = mock_table
+            mock_resource.return_value = mock_dynamodb
 
             yield mock_table
 
