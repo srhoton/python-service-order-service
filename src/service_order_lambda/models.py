@@ -37,7 +37,7 @@ class ServiceOrderBase(BaseModel):
     )
 
     @field_validator("service_date", mode="before")
-    def validate_date_format(self, value: Optional[str]) -> Optional[str]:
+    def validate_date_format(cls, value: Optional[str]) -> Optional[str]:
         """Validate date strings are in ISO 8601 format.
 
         Args:
@@ -59,7 +59,7 @@ class ServiceOrderBase(BaseModel):
             raise ValueError(f"Invalid ISO 8601 date format: {value}") from e
 
     @field_validator("service_time", mode="before")
-    def validate_time_format(self, value: Optional[str]) -> Optional[str]:
+    def validate_time_format(cls, value: Optional[str]) -> Optional[str]:
         """Validate time strings are in ISO 8601 format.
 
         Args:

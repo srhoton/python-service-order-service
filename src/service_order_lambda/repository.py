@@ -6,7 +6,7 @@ It provides CRUD operations for service order management.
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
 
 import boto3
@@ -49,7 +49,7 @@ class ServiceOrderRepository:
         Raises:
             ClientError: If there's an issue with the DynamoDB operation
         """
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # Create DynamoDB item from the service order model
         db_item = DynamoDBServiceOrder.from_service_order(
@@ -60,7 +60,7 @@ class ServiceOrderRepository:
         )
 
         # Convert to dict for DynamoDB
-        item_dict = db_item.dict(exclude_none=True)
+        item_dict = db_item.model_dump(exclude_none=True)
 
         try:
             # Add to DynamoDB
@@ -68,7 +68,7 @@ class ServiceOrderRepository:
             logger.info(f"Created service order {order_id} for customer {customer_id}")
             return dict(item_dict)
         except ClientError as e:
-            logger.error(f"Failed to create service order: {str(e)}")
+            logger.error(f"Failed to create service order: {e!s}")
             raise
 
     def get_service_order(self, order_id: str, customer_id: str) -> Optional[Dict]:
@@ -100,7 +100,7 @@ class ServiceOrderRepository:
             logger.info(f"Retrieved service order {order_id} for customer {customer_id}")
             return dict(item)
         except ClientError as e:
-            logger.error(f"Failed to get service order: {str(e)}")
+            logger.error(f"Failed to get service order: {e!s}")
             raise
 
     def update_service_order(
@@ -124,7 +124,7 @@ class ServiceOrderRepository:
         if not existing_item:
             return None
 
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # Prepare update expression parts
         update_expr_parts = ["SET updated_at = :updated_at"]
@@ -132,7 +132,7 @@ class ServiceOrderRepository:
         expr_attr_names = {}
 
         # Add fields from the service order model to the update expression
-        model_dict = service_order.dict(exclude_unset=True, exclude_none=True)
+        model_dict = service_order.model_dump(exclude_unset=True, exclude_none=True)
 
         # Map model field names to DynamoDB attribute names
         field_mapping = {
@@ -182,7 +182,7 @@ class ServiceOrderRepository:
             logger.info(f"Updated service order {order_id} for customer {customer_id}")
             return dict(updated_item)
         except ClientError as e:
-            logger.error(f"Failed to update service order: {str(e)}")
+            logger.error(f"Failed to update service order: {e!s}")
             raise
 
     def mark_service_order_deleted(self, order_id: str, customer_id: str) -> bool:
@@ -203,7 +203,7 @@ class ServiceOrderRepository:
         if not existing_item:
             return False
 
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         try:
             self.table.update_item(
@@ -221,7 +221,7 @@ class ServiceOrderRepository:
             logger.info(f"Marked service order {order_id} for customer {customer_id} as deleted")
             return True
         except ClientError as e:
-            logger.error(f"Failed to mark service order as deleted: {str(e)}")
+            logger.error(f"Failed to mark service order as deleted: {e!s}")
             raise
 
     def query_service_orders_by_customer(
@@ -262,5 +262,5 @@ class ServiceOrderRepository:
             logger.info(f"Retrieved {len(items)} service orders for customer {customer_id}")
             return [dict(item) for item in items]
         except ClientError as e:
-            logger.error(f"Failed to query service orders by customer: {str(e)}")
+            logger.error(f"Failed to query service orders by customer: {e!s}")
             raise

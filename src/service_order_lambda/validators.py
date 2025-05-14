@@ -7,7 +7,7 @@ to the service order Lambda function. Compatible with Python 3.13+.
 import logging
 import re
 import uuid
-from typing import Any, Dict, Optional, Tuple, TypedDict, NotRequired, TypeAlias, Literal
+from typing import Any, Dict, Optional, Tuple, TypeAlias, TypedDict
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -143,8 +143,8 @@ def _validate_request_common(body: Dict[str, Any]) -> Tuple[bool, Optional[str]]
 
     # Validate UUID fields
     for field in ["unit_id", "action_id", "employee_id"]:
-        if field in body and body[field]:
-            is_valid, parsed_uuid = validate_uuid(str(body[field]))
+        if value := body.get(field):
+            is_valid, parsed_uuid = validate_uuid(str(value))
             if not is_valid:
                 return False, f"Invalid UUID format for {field}"
             # Convert string to UUID object

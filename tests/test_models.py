@@ -6,18 +6,17 @@ to verify proper validation and serialization behavior.
 
 import json
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, cast
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
 from src.service_order_lambda.models import (
+    DynamoDBServiceOrder,
     ServiceOrderBase,
     ServiceOrderCreate,
-    ServiceOrderUpdate,
     ServiceOrderResponse,
-    DynamoDBServiceOrder,
+    ServiceOrderUpdate,
 )
 
 
@@ -48,10 +47,10 @@ def test_service_order_base_valid_data():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     # Act
     model = ServiceOrderBase.model_validate(data)
-    
+
     # Assert
     assert model.unit_id == uuid.UUID(VALID_SERVICE_ORDER_DATA["unit_id"])
     assert model.action_id == uuid.UUID(VALID_SERVICE_ORDER_DATA["action_id"])
@@ -70,10 +69,10 @@ def test_service_order_base_required_fields_only():
         "unit_id": uuid.uuid4(),
         "action_id": uuid.uuid4(),
     }
-    
+
     # Act
     model = ServiceOrderBase.model_validate(min_data)
-    
+
     # Assert
     assert model.unit_id == min_data["unit_id"]
     assert model.action_id == min_data["action_id"]
@@ -92,11 +91,11 @@ def test_service_order_base_missing_required_fields():
         "service_date": "2023-06-15",
         "service_notes": "Missing required fields",
     }
-    
+
     # Act & Assert
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderBase.model_validate(invalid_data)
-    
+
     # Check that the error mentions the missing required fields
     errors = excinfo.value.errors()
     field_errors = [error["loc"][0] for error in errors]
@@ -111,11 +110,11 @@ def test_service_order_base_invalid_uuid():
         "unit_id": "not-a-uuid",
         "action_id": str(uuid.uuid4()),
     }
-    
+
     # Act & Assert
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderBase.model_validate(invalid_uuid_data)
-    
+
     # Check that the error mentions invalid UUID format
     errors = excinfo.value.errors()
     assert any("unit_id" in str(error["loc"]) for error in errors)
@@ -129,11 +128,11 @@ def test_service_order_base_invalid_date_format():
         "action_id": str(uuid.uuid4()),
         "service_date": "06/15/2023",  # Not ISO 8601
     }
-    
+
     # Act & Assert
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderBase.model_validate(invalid_date_data)
-    
+
     # Check that the error mentions invalid date format
     errors = excinfo.value.errors()
     assert any("service_date" in str(error["loc"]) for error in errors)
@@ -147,11 +146,11 @@ def test_service_order_base_invalid_time_format():
         "action_id": str(uuid.uuid4()),
         "service_time": "2:30 PM",  # Not ISO 8601
     }
-    
+
     # Act & Assert
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderBase.model_validate(invalid_time_data)
-    
+
     # Check that the error mentions invalid time format
     errors = excinfo.value.errors()
     assert any("service_time" in str(error["loc"]) for error in errors)
@@ -165,11 +164,11 @@ def test_service_order_base_invalid_duration_type():
         "action_id": str(uuid.uuid4()),
         "service_duration": "two hours",  # Not an integer
     }
-    
+
     # Act & Assert
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderBase.model_validate(invalid_duration_data)
-    
+
     # Check that the error mentions invalid duration type
     errors = excinfo.value.errors()
     assert any("service_duration" in str(error["loc"]) for error in errors)
@@ -185,10 +184,10 @@ def test_service_order_create_valid_data():
     create_data["action_id"] = uuid.UUID(create_data["action_id"])
     create_data["employee_id"] = uuid.UUID(create_data["employee_id"])
     create_data["service_duration"] = int(create_data["service_duration"])
-    
+
     # Act
     model = ServiceOrderCreate.model_validate(create_data)
-    
+
     # Assert
     assert model.unit_id == create_data["unit_id"]
     assert model.action_id == create_data["action_id"]
@@ -204,10 +203,10 @@ def test_service_order_create_missing_location_id():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderCreate.model_validate(data)  # Missing location_id
-    
+
     # Check that the error mentions missing location_id
     errors = excinfo.value.errors()
     field_errors = [error["loc"][0] for error in errors]
@@ -223,10 +222,10 @@ def test_service_order_update_valid_data():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     # Act
     model = ServiceOrderUpdate.model_validate(data)
-    
+
     # Assert
     assert model.action_id == uuid.UUID(VALID_SERVICE_ORDER_DATA["action_id"])
     assert str(model.action_id) == VALID_SERVICE_ORDER_DATA["action_id"]
@@ -245,10 +244,10 @@ def test_service_order_response_valid_data():
     response_data["action_id"] = uuid.UUID(response_data["action_id"])
     response_data["employee_id"] = uuid.UUID(response_data["employee_id"])
     response_data["service_duration"] = int(response_data["service_duration"])
-    
+
     # Act
     model = ServiceOrderResponse.model_validate(response_data)
-    
+
     # Assert
     assert model.id == uuid.UUID(ORDER_ID)
     assert model.customer_id == CUSTOMER_ID
@@ -261,7 +260,7 @@ def test_service_order_response_missing_required_fields():
     # Arrange
     incomplete_data = VALID_SERVICE_ORDER_DATA.copy()
     # Missing id, customer_id, created_at
-    
+
     # Act & Assert
     # Prepare data with UUIDs
     data = incomplete_data.copy()
@@ -269,10 +268,10 @@ def test_service_order_response_missing_required_fields():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     with pytest.raises(ValidationError) as excinfo:
         ServiceOrderResponse.model_validate(data)
-    
+
     # Check that the error mentions missing required fields
     errors = excinfo.value.errors()
     field_errors = [error["loc"][0] for error in errors]
@@ -288,7 +287,7 @@ def test_service_order_response_json_serialization():
     response_data["id"] = ORDER_ID
     response_data["customer_id"] = CUSTOMER_ID
     response_data["created_at"] = TIMESTAMP
-    
+
     # Prepare data with UUIDs
     data = response_data.copy()
     data["id"] = uuid.UUID(data["id"])
@@ -296,13 +295,13 @@ def test_service_order_response_json_serialization():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     model = ServiceOrderResponse.model_validate(data)
-    
+
     # Act
     json_str = model.model_dump_json(exclude_none=True)
     parsed_json = json.loads(json_str)
-    
+
     # Assert
     assert parsed_json["id"] == str(uuid.UUID(ORDER_ID))
     assert parsed_json["customer_id"] == CUSTOMER_ID
@@ -322,9 +321,9 @@ def test_dynamodb_service_order_from_service_order():
     data["action_id"] = uuid.UUID(data["action_id"])
     data["employee_id"] = uuid.UUID(data["employee_id"])
     data["service_duration"] = int(data["service_duration"])
-    
+
     service_order = ServiceOrderCreate.model_validate(data)
-    
+
     # Act
     db_item = DynamoDBServiceOrder.from_service_order(
         order_id=uuid.UUID(ORDER_ID),
@@ -332,7 +331,7 @@ def test_dynamodb_service_order_from_service_order():
         service_order=service_order,
         timestamp=TIMESTAMP,
     )
-    
+
     # Assert
     assert db_item.PK == ORDER_ID
     assert db_item.SK == CUSTOMER_ID
@@ -360,12 +359,12 @@ def test_dynamodb_service_order_to_response_model():
         "created_at": TIMESTAMP,
         "updated_at": TIMESTAMP,
     }
-    
+
     db_item = DynamoDBServiceOrder(**db_data)
-    
+
     # Act
     response_model = db_item.to_response_model()
-    
+
     # Assert
     assert response_model.id == uuid.UUID(ORDER_ID)
     assert response_model.customer_id == CUSTOMER_ID
@@ -386,11 +385,11 @@ def test_dynamodb_service_order_optional_fields():
         "action_id": VALID_SERVICE_ORDER_DATA["action_id"],
         "created_at": TIMESTAMP,
     }
-    
+
     # Act
     db_item = DynamoDBServiceOrder(**minimal_db_data)
     response_model = db_item.to_response_model()
-    
+
     # Assert
     assert db_item.service_date is None
     assert db_item.service_time is None
@@ -400,7 +399,7 @@ def test_dynamodb_service_order_optional_fields():
     assert db_item.service_notes is None
     assert db_item.updated_at is None
     assert db_item.deleted_at is None
-    
+
     # Check response model
     assert response_model.service_date is None
     assert response_model.service_time is None

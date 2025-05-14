@@ -7,26 +7,30 @@ to verify proper handling of service order CRUD operations.
 import json
 import os
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
 from unittest import mock
 
 import pytest
 
-from src.service_order_lambda.app import lambda_handler, handle_create_request, handle_update_request, handle_delete_request, handle_get_request
+from src.service_order_lambda.app import lambda_handler
 
 
 # Mock environment variables
 @pytest.fixture(autouse=True)
 def mock_env_vars():
     """Mock environment variables for testing."""
-    with mock.patch.dict(os.environ, {
-        "APPCONFIG_APPLICATION_ID": "test-app-id",
-        "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
-        "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
-        "LOG_LEVEL": "INFO"
-    }):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "APPCONFIG_APPLICATION_ID": "test-app-id",
+            "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
+            "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
+            "LOG_LEVEL": "INFO",
+        },
+    ):
         yield
+
 
 # Mock AWS clients
 @pytest.fixture(autouse=True)
@@ -36,22 +40,25 @@ def mock_aws_services():
     with mock.patch("boto3.client") as mock_client:
         mock_app_config = mock.MagicMock()
         mock_content = mock.MagicMock()
-        mock_content.read.return_value = json.dumps({"serviceOrderTableName": "test_service_orders"})
+        mock_content.read.return_value = json.dumps(
+            {"serviceOrderTableName": "test_service_orders"}
+        )
         mock_app_config.get_configuration.return_value = {"Content": mock_content}
         mock_client.return_value = mock_app_config
-        
+
         # Mock DynamoDB
         with mock.patch("boto3.resource") as mock_resource:
             mock_table = mock.MagicMock()
             mock_resource.return_value.Table.return_value = mock_table
-            
+
             # Set return values for mock table methods
             mock_table.get_item.return_value = {}
             mock_table.put_item.return_value = {}
             mock_table.update_item.return_value = {}
             mock_table.query.return_value = {"Items": []}
-            
+
             yield mock_table
+
 
 # Mock repository for testing
 @pytest.fixture
@@ -69,13 +76,13 @@ def create_api_gateway_event(
     body: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create a mock API Gateway event for testing.
-    
+
     Args:
         http_method: The HTTP method (GET, POST, PUT, DELETE)
         path_params: The path parameters
         query_params: The query string parameters
         body: The request body
-        
+
     Returns:
         A mock API Gateway event
     """
@@ -84,10 +91,10 @@ def create_api_gateway_event(
         "pathParameters": path_params or {},
         "queryStringParameters": query_params or {},
     }
-    
+
     if body:
         event["body"] = json.dumps(body)
-    
+
     return event
 
 
@@ -134,15 +141,17 @@ def test_create_service_order_success(mock_repository):
         query_params={"locationId": LOCATION_ID},
         body=VALID_SERVICE_ORDER,
     )
-    
+
     # Configure mock
     mock_repository.create_service_order.return_value = DB_SERVICE_ORDER
-    
+
     # Act
     with mock.patch("uuid.uuid4", return_value=uuid.UUID(ORDER_ID)):
-        with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+        with mock.patch(
+            "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+        ):
             response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 201
     response_body = json.loads(response["body"])
@@ -161,11 +170,13 @@ def test_create_service_order_missing_customer_id(mock_aws_services, mock_reposi
         query_params={"locationId": LOCATION_ID},
         body=VALID_SERVICE_ORDER,
     )
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 400
     response_body = json.loads(response["body"])
@@ -182,11 +193,13 @@ def test_create_service_order_missing_location_id(mock_aws_services, mock_reposi
         query_params={},  # Missing locationId
         body=VALID_SERVICE_ORDER,
     )
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 400
     response_body = json.loads(response["body"])
@@ -201,18 +214,20 @@ def test_create_service_order_missing_required_fields(mock_aws_services, mock_re
         "service_date": "2023-06-15",
         "service_notes": "Test service order",
     }
-    
+
     event = create_api_gateway_event(
         http_method="POST",
         path_params={"customerId": CUSTOMER_ID},
         query_params={"locationId": LOCATION_ID},
         body=invalid_body,
     )
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 400
     response_body = json.loads(response["body"])
@@ -230,26 +245,28 @@ def test_update_service_order_success(mock_repository):
         "service_status": "in_progress",
         "service_notes": "Updated notes",
     }
-    
+
     event = create_api_gateway_event(
         http_method="PUT",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
         body=update_body,
     )
-    
+
     # Updated service order in DB
     updated_db_item = DB_SERVICE_ORDER.copy()
     updated_db_item["service_status"] = "in_progress"
     updated_db_item["service_notes"] = "Updated notes"
     updated_db_item["updated_at"] = TIMESTAMP
-    
+
     # Configure mock
     mock_repository.update_service_order.return_value = updated_db_item
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 200
     response_body = json.loads(response["body"])
@@ -266,14 +283,16 @@ def test_update_service_order_not_found(mock_repository, mock_aws_services):
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
         body=VALID_SERVICE_ORDER,
     )
-    
+
     # Configure mock
     mock_repository.update_service_order.return_value = None
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     response_body = json.loads(response["body"])
     assert "error" in response_body
@@ -288,14 +307,16 @@ def test_delete_service_order_success(mock_repository, mock_aws_services):
         http_method="DELETE",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
     )
-    
+
     # Configure mock
     mock_repository.mark_service_order_deleted.return_value = True
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 204
     assert "body" not in response
@@ -308,14 +329,16 @@ def test_delete_service_order_not_found(mock_repository, mock_aws_services):
         http_method="DELETE",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
     )
-    
+
     # Configure mock
     mock_repository.mark_service_order_deleted.return_value = False
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 404
     response_body = json.loads(response["body"])
@@ -331,14 +354,16 @@ def test_get_service_order_by_id_success(mock_repository, mock_aws_services):
         http_method="GET",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
     )
-    
+
     # Configure mock
     mock_repository.get_service_order.return_value = DB_SERVICE_ORDER
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 200
     response_body = json.loads(response["body"])
@@ -353,14 +378,16 @@ def test_get_service_order_by_id_not_found(mock_repository, mock_aws_services):
         http_method="GET",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
     )
-    
+
     # Configure mock
     mock_repository.get_service_order.return_value = None
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 404
     response_body = json.loads(response["body"])
@@ -375,20 +402,22 @@ def test_get_service_orders_by_customer(mock_repository, mock_aws_services):
         http_method="GET",
         path_params={"customerId": CUSTOMER_ID},
     )
-    
+
     # Create multiple DB items
     db_items = [
         DB_SERVICE_ORDER,
-        {**DB_SERVICE_ORDER, "PK": str(uuid.uuid4()), "service_status": "completed"}
+        {**DB_SERVICE_ORDER, "PK": str(uuid.uuid4()), "service_status": "completed"},
     ]
-    
+
     # Configure mock
     mock_repository.query_service_orders_by_customer.return_value = db_items
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 200
     response_body = json.loads(response["body"])
@@ -406,14 +435,16 @@ def test_get_service_orders_by_location(mock_repository, mock_aws_services):
         path_params={"customerId": CUSTOMER_ID},
         query_params={"locationId": LOCATION_ID},
     )
-    
+
     # Configure mock
     mock_repository.query_service_orders_by_customer.return_value = [DB_SERVICE_ORDER]
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 200
     response_body = json.loads(response["body"])
@@ -427,11 +458,13 @@ def test_method_not_allowed(mock_aws_services, mock_repository):
     """Test handling of unsupported HTTP methods."""
     # Arrange
     event = create_api_gateway_event(http_method="PATCH")
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 405
     response_body = json.loads(response["body"])
@@ -446,15 +479,17 @@ def test_internal_server_error(mock_repository, mock_aws_services):
         http_method="GET",
         path_params={"id": ORDER_ID, "customerId": CUSTOMER_ID},
     )
-    
+
     # Configure mock to raise an exception
     # Mock the repository to raise an exception
     mock_repository.get_service_order.side_effect = Exception("Database error")
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 500
     response_body = json.loads(response["body"])
@@ -466,11 +501,13 @@ def test_options_request(mock_aws_services, mock_repository):
     """Test handling of OPTIONS requests for CORS."""
     # Arrange
     event = create_api_gateway_event(http_method="OPTIONS")
-    
+
     # Act
-    with mock.patch("src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository):
+    with mock.patch(
+        "src.service_order_lambda.app.ServiceOrderRepository", return_value=mock_repository
+    ):
         response = lambda_handler(event, {})
-    
+
     # Assert
     assert response["statusCode"] == 200
     assert "Access-Control-Allow-Origin" in response["headers"]
