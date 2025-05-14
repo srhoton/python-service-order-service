@@ -26,7 +26,7 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize the configuration manager."""
-        self._app_config_client = boto3.client("appconfig")
+        self._app_config_client = None
         self._table_name: Optional[str] = None
 
         # Get required environment variables
@@ -36,6 +36,17 @@ class Config:
 
         if not all([self.application_id, self.environment_id, self.configuration_profile_id]):
             logger.warning("Missing required AppConfig environment variables")
+            
+    @property
+    def app_config_client(self):
+        """Lazy-load the AppConfig client.
+        
+        Returns:
+            The boto3 AppConfig client
+        """
+        if self._app_config_client is None:
+            self._app_config_client = boto3.client("appconfig", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
+        return self._app_config_client
 
     @property
     def service_order_table_name(self) -> str:
@@ -49,7 +60,7 @@ class Config:
         """
         if self._table_name is None:
             try:
-                response = self._app_config_client.get_configuration(
+                response = self.app_config_client.get_configuration(
                     Application=self.application_id,
                     Environment=self.environment_id,
                     Configuration=self.configuration_profile_id,
@@ -80,7 +91,7 @@ class Config:
             The configuration value or default if not found
         """
         try:
-            response = self._app_config_client.get_configuration(
+            response = self.app_config_client.get_configuration(
                 Application=self.application_id,
                 Environment=self.environment_id,
                 Configuration=self.configuration_profile_id,
