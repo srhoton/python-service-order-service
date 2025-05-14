@@ -4,9 +4,9 @@ This module contains the Pydantic models used for validation and serialization
 of service order data.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
-import uuid
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -17,9 +17,7 @@ class ServiceOrderBase(BaseModel):
     This model contains the common fields for service order operations.
     """
 
-    unit_id: uuid.UUID = Field(
-        ..., description="Unique identifier for the unit being serviced"
-    )
+    unit_id: uuid.UUID = Field(..., description="Unique identifier for the unit being serviced")
     action_id: uuid.UUID = Field(
         ..., description="Unique identifier for the service action to be performed"
     )
@@ -29,12 +27,8 @@ class ServiceOrderBase(BaseModel):
     service_time: Optional[str] = Field(
         None, description="The time of service in ISO 8601 format (HH:MM:SS)"
     )
-    service_duration: Optional[int] = Field(
-        None, description="Duration of service in minutes"
-    )
-    service_status: Optional[str] = Field(
-        None, description="Current status of the service order"
-    )
+    service_duration: Optional[int] = Field(None, description="Duration of service in minutes")
+    service_status: Optional[str] = Field(None, description="Current status of the service order")
     employee_id: Optional[uuid.UUID] = Field(
         None, description="Unique identifier for the employee assigned to the service"
     )
@@ -43,7 +37,7 @@ class ServiceOrderBase(BaseModel):
     )
 
     @field_validator("service_date", mode="before")
-    def validate_date_format(cls, value: Optional[str]) -> Optional[str]:
+    def validate_date_format(self, value: Optional[str]) -> Optional[str]:
         """Validate date strings are in ISO 8601 format.
 
         Args:
@@ -61,11 +55,11 @@ class ServiceOrderBase(BaseModel):
             # Validate date format
             datetime.fromisoformat(str(value))
             return value
-        except ValueError:
-            raise ValueError(f"Invalid ISO 8601 date format: {value}")
-            
+        except ValueError as e:
+            raise ValueError(f"Invalid ISO 8601 date format: {value}") from e
+
     @field_validator("service_time", mode="before")
-    def validate_time_format(cls, value: Optional[str]) -> Optional[str]:
+    def validate_time_format(self, value: Optional[str]) -> Optional[str]:
         """Validate time strings are in ISO 8601 format.
 
         Args:
@@ -79,18 +73,19 @@ class ServiceOrderBase(BaseModel):
         """
         if value is None:
             return None
-            
+
         # Simple time validation
         import re
+
         if re.match(r"^\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?$", str(value)):
             return value
-        
+
         try:
             # Try more complex formats through datetime
             datetime.fromisoformat(str(value))
             return value
-        except ValueError:
-            raise ValueError(f"Invalid ISO 8601 time format: {value}")
+        except ValueError as e:
+            raise ValueError(f"Invalid ISO 8601 time format: {value}") from e
 
 
 class ServiceOrderCreate(ServiceOrderBase):
@@ -121,25 +116,30 @@ class ServiceOrderResponse(ServiceOrderBase):
 
     id: uuid.UUID = Field(..., description="Unique identifier for the service order")
     customer_id: str = Field(..., description="Customer identifier")
-    location_id: Optional[str] = Field(
-        None, description="Location identifier for the service"
-    )
+    location_id: Optional[str] = Field(None, description="Location identifier for the service")
     created_at: str = Field(..., description="Timestamp of creation in ISO 8601 format")
     updated_at: Optional[str] = Field(
         None, description="Timestamp of last update in ISO 8601 format"
     )
-    deleted_at: Optional[str] = Field(
-        None, description="Timestamp of deletion in ISO 8601 format"
-    )
+    deleted_at: Optional[str] = Field(None, description="Timestamp of deletion in ISO 8601 format")
 
     model_config = {
         "populate_by_name": True,
-        "json_schema_extra": {
-            "json_encoders": {
-                uuid.UUID: lambda v: str(v),
-            }
-        }
     }
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+        """Override default model_dump to handle UUID serialization."""
+        data = super().model_dump(**kwargs)
+        # Convert UUID objects to strings
+        if id_value := data.get("id"):
+            data["id"] = str(id_value)
+        if unit_id := data.get("unit_id"):
+            data["unit_id"] = str(unit_id)
+        if action_id := data.get("action_id"):
+            data["action_id"] = str(action_id)
+        if employee_id := data.get("employee_id"):
+            data["employee_id"] = str(employee_id)
+        return data
 
 
 class DynamoDBServiceOrder(BaseModel):
@@ -231,7 +231,10 @@ class DynamoDBServiceOrder(BaseModel):
         if self.service_time:
             response_data["service_time"] = self.service_time
         if self.service_duration is not None:
-            response_data["service_duration"] = int(self.service_duration) if isinstance(self.service_duration, str) else self.service_duration
+            if isinstance(self.service_duration, str):
+                response_data["service_duration"] = int(self.service_duration)
+            else:
+                response_data["service_duration"] = self.service_duration
         if self.service_status:
             response_data["service_status"] = self.service_status
         if self.employee_id:

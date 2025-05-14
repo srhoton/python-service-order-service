@@ -188,16 +188,16 @@ def test_validate_create_request_valid():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_body is not None
-    assert error is None
-    assert validated_body["location_id"] == location_id
-    assert isinstance(validated_body["unit_id"], uuid.UUID)
-    assert isinstance(validated_body["action_id"], uuid.UUID)
-    assert isinstance(validated_body["employee_id"], uuid.UUID)
+    assert result["is_valid"] is True
+    assert result["body"] is not None
+    assert result["error"] is None
+    assert result["body"]["location_id"] == location_id
+    assert isinstance(result["body"]["unit_id"], uuid.UUID)
+    assert isinstance(result["body"]["action_id"], uuid.UUID)
+    assert isinstance(result["body"]["employee_id"], uuid.UUID)
 
 
 def test_validate_create_request_missing_customer_id():
@@ -217,13 +217,13 @@ def test_validate_create_request_missing_customer_id():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Missing customerId" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Missing customerId" in result["error"]
 
 
 def test_validate_create_request_missing_location_id():
@@ -243,13 +243,13 @@ def test_validate_create_request_missing_location_id():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Missing locationId" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Missing locationId" in result["error"]
 
 
 def test_validate_create_request_missing_body():
@@ -265,13 +265,13 @@ def test_validate_create_request_missing_body():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Missing request body" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Missing request body" in result["error"]
 
 
 def test_validate_create_request_invalid_json():
@@ -287,13 +287,13 @@ def test_validate_create_request_invalid_json():
     event["body"] = "not valid json"
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Invalid JSON" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Invalid JSON" in result["error"]
 
 
 def test_validate_create_request_missing_required_fields():
@@ -315,13 +315,13 @@ def test_validate_create_request_missing_required_fields():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Missing required field" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Missing required field" in result["error"]
 
 
 def test_validate_create_request_invalid_uuid_field():
@@ -342,13 +342,13 @@ def test_validate_create_request_invalid_uuid_field():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Invalid UUID format" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Invalid UUID format" in result["error"]
 
 
 def test_validate_create_request_invalid_date_format():
@@ -370,13 +370,13 @@ def test_validate_create_request_invalid_date_format():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Invalid ISO 8601 format for service_date" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Invalid ISO 8601 format for service_date" in result["error"]
 
 
 def test_validate_create_request_invalid_time_format():
@@ -398,13 +398,13 @@ def test_validate_create_request_invalid_time_format():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "Invalid ISO 8601 format for service_time" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "Invalid ISO 8601 format for service_time" in result["error"]
 
 
 def test_validate_create_request_invalid_duration():
@@ -426,13 +426,13 @@ def test_validate_create_request_invalid_duration():
     )
     
     # Act
-    is_valid, validated_body, error = validate_create_request(event)
+    result = validate_create_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert error is not None
-    assert "service_duration must be an integer" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["error"] is not None
+    assert "service_duration must be an integer" in result["error"]
 
 
 # Test update request validation
@@ -455,15 +455,15 @@ def test_validate_update_request_valid():
     )
     
     # Act
-    is_valid, validated_body, validated_customer_id, error = validate_update_request(event)
+    result = validate_update_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_body is not None
-    assert validated_customer_id == customer_id
-    assert error is None
-    assert isinstance(validated_body["unit_id"], uuid.UUID)
-    assert isinstance(validated_body["action_id"], uuid.UUID)
+    assert result["is_valid"] is True
+    assert result["body"] is not None
+    assert result["customer_id"] == customer_id
+    assert result["error"] is None
+    assert isinstance(result["body"]["unit_id"], uuid.UUID)
+    assert isinstance(result["body"]["action_id"], uuid.UUID)
 
 
 def test_validate_update_request_missing_id():
@@ -482,14 +482,14 @@ def test_validate_update_request_missing_id():
     )
     
     # Act
-    is_valid, validated_body, validated_customer_id, error = validate_update_request(event)
+    result = validate_update_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert validated_customer_id is None
-    assert error is not None
-    assert "Missing service order id" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["customer_id"] is None
+    assert result["error"] is not None
+    assert "Missing service order id" in result["error"]
 
 
 def test_validate_update_request_invalid_id():
@@ -508,14 +508,14 @@ def test_validate_update_request_invalid_id():
     )
     
     # Act
-    is_valid, validated_body, validated_customer_id, error = validate_update_request(event)
+    result = validate_update_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_body is None
-    assert validated_customer_id is None
-    assert error is not None
-    assert "Invalid UUID format" in error
+    assert result["is_valid"] is False
+    assert result["body"] is None
+    assert result["customer_id"] is None
+    assert result["error"] is not None
+    assert "Invalid UUID format" in result["error"]
 
 
 # Test delete request validation
@@ -530,13 +530,13 @@ def test_validate_delete_request_valid():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, error = validate_delete_request(event)
+    result = validate_delete_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_order_id == order_id
-    assert validated_customer_id == customer_id
-    assert error is None
+    assert result["is_valid"] is True
+    assert result["order_id"] == order_id
+    assert result["customer_id"] == customer_id
+    assert result["error"] is None
 
 
 def test_validate_delete_request_missing_id():
@@ -549,14 +549,14 @@ def test_validate_delete_request_missing_id():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, error = validate_delete_request(event)
+    result = validate_delete_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_order_id is None
-    assert validated_customer_id is None
-    assert error is not None
-    assert "Missing service order id" in error
+    assert result["is_valid"] is False
+    assert result["order_id"] is None
+    assert result["customer_id"] is None
+    assert result["error"] is not None
+    assert "Missing service order id" in result["error"]
 
 
 def test_validate_delete_request_invalid_id():
@@ -569,14 +569,14 @@ def test_validate_delete_request_invalid_id():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, error = validate_delete_request(event)
+    result = validate_delete_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_order_id is None
-    assert validated_customer_id is None
-    assert error is not None
-    assert "Invalid UUID format" in error
+    assert result["is_valid"] is False
+    assert result["order_id"] is None
+    assert result["customer_id"] is None
+    assert result["error"] is not None
+    assert "Invalid UUID format" in result["error"]
 
 
 # Test get request validation
@@ -591,14 +591,14 @@ def test_validate_get_request_valid_with_id():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, validated_location_id, error = validate_get_request(event)
+    result = validate_get_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_order_id == order_id
-    assert validated_customer_id == customer_id
-    assert validated_location_id is None
-    assert error is None
+    assert result["is_valid"] is True
+    assert result["order_id"] == order_id
+    assert result["customer_id"] == customer_id
+    assert result["location_id"] is None
+    assert result["error"] is None
 
 
 def test_validate_get_request_valid_with_location():
@@ -613,14 +613,14 @@ def test_validate_get_request_valid_with_location():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, validated_location_id, error = validate_get_request(event)
+    result = validate_get_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_order_id is None
-    assert validated_customer_id == customer_id
-    assert validated_location_id == location_id
-    assert error is None
+    assert result["is_valid"] is True
+    assert result["order_id"] is None
+    assert result["customer_id"] == customer_id
+    assert result["location_id"] == location_id
+    assert result["error"] is None
 
 
 def test_validate_get_request_valid_customer_only():
@@ -633,14 +633,14 @@ def test_validate_get_request_valid_customer_only():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, validated_location_id, error = validate_get_request(event)
+    result = validate_get_request(event)
     
     # Assert
-    assert is_valid is True
-    assert validated_order_id is None
-    assert validated_customer_id == customer_id
-    assert validated_location_id is None
-    assert error is None
+    assert result["is_valid"] is True
+    assert result["order_id"] is None
+    assert result["customer_id"] == customer_id
+    assert result["location_id"] is None
+    assert result["error"] is None
 
 
 def test_validate_get_request_missing_customer_id():
@@ -651,15 +651,15 @@ def test_validate_get_request_missing_customer_id():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, validated_location_id, error = validate_get_request(event)
+    result = validate_get_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_order_id is None
-    assert validated_customer_id is None
-    assert validated_location_id is None
-    assert error is not None
-    assert "Missing customerId" in error
+    assert result["is_valid"] is False
+    assert result["order_id"] is None
+    assert result["customer_id"] is None
+    assert result["location_id"] is None
+    assert result["error"] is not None
+    assert "Missing customerId" in result["error"]
 
 
 def test_validate_get_request_invalid_id():
@@ -672,12 +672,12 @@ def test_validate_get_request_invalid_id():
     )
     
     # Act
-    is_valid, validated_order_id, validated_customer_id, validated_location_id, error = validate_get_request(event)
+    result = validate_get_request(event)
     
     # Assert
-    assert is_valid is False
-    assert validated_order_id is None
-    assert validated_customer_id is None
-    assert validated_location_id is None
-    assert error is not None
-    assert "Invalid UUID format" in error
+    assert result["is_valid"] is False
+    assert result["order_id"] is None
+    assert result["customer_id"] is None
+    assert result["location_id"] is None
+    assert result["error"] is not None
+    assert "Invalid UUID format" in result["error"]

@@ -14,7 +14,7 @@ This AWS Lambda function manages service orders through a RESTful API. It provid
 - AWS AppConfig integration for configuration management
 - Comprehensive validation of request parameters
 - Complete test suite for all components
-- Support for Python 3.10+
+- Support for Python 3.13+ with type hints, pattern matching, and modern language features
 
 This project follows a modular implementation in the `src/` directory, adhering to Python best practices with:
 - Type hints throughout the codebase
@@ -63,10 +63,18 @@ service-order-lambda/
 
 ### Prerequisites
 
-- Python 3.10 or higher (tested with Python 3.13)
+- Python 3.13 or higher
 - AWS CLI configured with appropriate permissions
 - AWS AppConfig setup with the following configuration:
   - `serviceOrderTableName`: Name of the DynamoDB table for service orders
+
+### Python 3.13 Features
+
+This service leverages several Python 3.13 features:
+- Modern type annotations with `TypedDict` for structured API responses
+- Pattern matching for more concise validation logic
+- Improved error handling with structured exceptions
+- Better performance characteristics of Python 3.13 runtime
 
 ### Environment Variables
 
@@ -95,6 +103,12 @@ The Lambda requires the following environment variables:
    pytest
    ```
 
+4. Deploy with provided script:
+   ```
+   ./deploy.sh
+   ```
+   This script creates a deployment package optimized for Python 3.13 Lambda runtime.
+
 ### Deployment
 
 #### Option 1: Deploy the Modular Version
@@ -110,11 +124,21 @@ The Lambda requires the following environment variables:
    ```
    aws lambda create-function \
      --function-name service-order-lambda \
-     --runtime python3.10 \
+     --runtime python3.13 \
      --handler service_order_lambda.app.lambda_handler \
      --zip-file fileb://lambda_function.zip \
      --role <your-lambda-execution-role-arn>
    ```
+
+#### Python 3.13 Lambda Runtime Considerations
+
+When deploying to AWS Lambda with Python 3.13:
+
+- Lambda cold starts are faster with Python 3.13 compared to older versions
+- Ensure your dependencies are compatible with Python 3.13
+- Set memory appropriately (minimum 256MB recommended)
+- Consider setting reserved concurrency for production workloads
+- The deployment package size limit is 50MB zipped, 250MB unzipped
 
 
 ## Testing
