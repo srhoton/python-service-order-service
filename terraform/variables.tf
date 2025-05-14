@@ -46,6 +46,10 @@ variable "dynamodb_billing_mode" {
   description = "DynamoDB billing mode (PROVISIONED or PAY_PER_REQUEST)"
   type        = string
   default     = "PAY_PER_REQUEST"
+  validation {
+    condition     = contains(["PROVISIONED", "PAY_PER_REQUEST"], var.dynamodb_billing_mode)
+    error_message = "Billing mode must be either PROVISIONED or PAY_PER_REQUEST."
+  }
 }
 
 variable "dynamodb_read_capacity" {
@@ -71,18 +75,30 @@ variable "lambda_memory_size" {
   description = "Memory size for the Lambda function in MB"
   type        = number
   default     = 256
+  validation {
+    condition     = var.lambda_memory_size >= 128 && var.lambda_memory_size <= 10240
+    error_message = "Lambda memory size must be between 128 MB and 10240 MB."
+  }
 }
 
 variable "lambda_timeout" {
   description = "Timeout for the Lambda function in seconds"
   type        = number
   default     = 30
+  validation {
+    condition     = var.lambda_timeout >= 1 && var.lambda_timeout <= 900
+    error_message = "Lambda timeout must be between 1 and 900 seconds."
+  }
 }
 
 variable "lambda_log_retention_days" {
   description = "Number of days to retain Lambda function logs"
   type        = number
   default     = 14
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.lambda_log_retention_days)
+    error_message = "Lambda log retention days must be one of: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653."
+  }
 }
 
 # S3 variables

@@ -39,7 +39,7 @@ resource "aws_appconfig_configuration_profile" "service_order" {
 
 resource "aws_appconfig_hosted_configuration_version" "service_order" {
   application_id           = aws_appconfig_application.service_order.id
-  configuration_profile_id = aws_appconfig_configuration_profile.service_order.configuration_profile_id
+  configuration_profile_id = aws_appconfig_configuration_profile.service_order.id
   description              = "Initial configuration for Service Order Lambda"
   content_type             = "application/json"
 
@@ -77,10 +77,10 @@ output "appconfig_application_id" {
 
 output "appconfig_environment_id" {
   description = "ID of the AppConfig environment"
-  value       = aws_appconfig_environment.service_order.id
+  value       = aws_appconfig_environment.service_order.environment_id
 }
 
 output "appconfig_configuration_profile_id" {
   description = "ID of the AppConfig configuration profile"
-  value       = aws_appconfig_configuration_profile.service_order.id
+  value       = aws_appconfig_configuration_profile.service_order.configuration_profile_id
 }

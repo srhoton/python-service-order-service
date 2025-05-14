@@ -1,25 +1,25 @@
 resource "aws_lambda_function" "service_order" {
   function_name = local.function_name
   description   = "Service Order Lambda function"
-  
+
   s3_bucket = aws_s3_bucket.lambda_deployment.id
   s3_key    = aws_s3_object.lambda_package.key
-  
+
   runtime     = var.lambda_runtime
   handler     = local.lambda_function_handler
   memory_size = var.lambda_memory_size
   timeout     = var.lambda_timeout
-  
+
   role = aws_iam_role.lambda_execution.arn
-  
+
   environment {
     variables = local.lambda_environment_variables
   }
-  
+
   depends_on = [
     aws_cloudwatch_log_group.lambda_logs
   ]
-  
+
   tags = merge(
     local.common_tags,
     {
@@ -39,7 +39,7 @@ resource "aws_s3_object" "lambda_package" {
   bucket = aws_s3_bucket.lambda_deployment.id
   key    = "lambda/${local.function_name}/${filesha256(data.archive_file.lambda_package.output_path)}.zip"
   source = data.archive_file.lambda_package.output_path
-  
+
   etag = filemd5(data.archive_file.lambda_package.output_path)
 }
 
@@ -47,14 +47,14 @@ resource "aws_s3_object" "lambda_package" {
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/${local.function_name}"
   retention_in_days = var.lambda_log_retention_days
-  
+
   tags = local.common_tags
 }
 
 # IAM Role and Policy for Lambda
 resource "aws_iam_role" "lambda_execution" {
   name = "${local.function_name}-execution-role"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -67,14 +67,14 @@ resource "aws_iam_role" "lambda_execution" {
       }
     ]
   })
-  
+
   tags = local.common_tags
 }
 
 resource "aws_iam_policy" "lambda_permissions" {
   name        = "${local.function_name}-policy"
   description = "Policy for Service Order Lambda function"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
