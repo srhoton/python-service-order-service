@@ -41,7 +41,7 @@ jobs:
         id: install-deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r python-service-order-service/requirements.txt
+          pip install -r requirements.txt
         continue-on-error: false
 
       - name: Run linting with ruff
@@ -49,9 +49,9 @@ jobs:
         run: |
           pip install ruff
           echo "Running code linting..."
-          ruff check python-service-order-service --output-format=github
+          ruff check . --output-format=github
           echo "Checking code formatting..."
-          ruff format --check python-service-order-service
+          ruff format --check .
         continue-on-error: false
 
       - name: Run mypy
@@ -59,7 +59,7 @@ jobs:
         run: |
           pip install mypy
           echo "Running type checking..."
-          mypy python-service-order-service/src/ --pretty
+          mypy src/ --pretty
         continue-on-error: false
         
       - name: Run security scanning with Bandit
@@ -67,7 +67,7 @@ jobs:
         run: |
           pip install bandit
           echo "Running security scan on Python code..."
-          bandit -r python-service-order-service/src/ -f json -o bandit-results.json
+          bandit -r src/ -f json -o bandit-results.json
         continue-on-error: true
           
       - name: Upload security scan results
@@ -81,14 +81,14 @@ jobs:
       - name: Run tests with pytest
         id: test
         run: |
-          cd python-service-order-service && pytest --junitxml=test-results.xml
+          pytest --junitxml=test-results.xml
           
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: python-service-order-service/test-results.xml
+          path: test-results.xml
           retention-days: 7
 
       - name: Build Lambda package
@@ -96,8 +96,8 @@ jobs:
         run: |
           echo "Building Lambda deployment package..."
           mkdir -p build
-          cp -r python-service-order-service/src/* build/
-          pip install -r python-service-order-service/requirements.txt --target ./build
+          cp -r src/* build/
+          pip install -r requirements.txt --target ./build
           cd build && zip -r ../lambda_function.zip .
           echo "Package size: $(du -h ../lambda_function.zip | cut -f1)"
       
@@ -128,24 +128,24 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Format
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
         id: tf-init
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: terraform init
         
       - name: Cache Terraform
         uses: actions/cache@v3
         with:
-          path: ./python-service-order-service/terraform/.terraform
+          path: ./terraform/.terraform
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-terraform-
 
       - name: Terraform Validate
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: terraform validate
 
       - name: Install tflint
@@ -153,12 +153,12 @@ jobs:
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
 
       - name: Run tflint
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: tflint --recursive
         
       - name: Run Checkov security scan
         id: checkov
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: |
           pip install checkov
           echo "Running security scan on Terraform code..."
@@ -170,12 +170,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: terraform-security-results
-          path: ./python-service-order-service/terraform/checkov-results
+          path: ./terraform/checkov-results
           retention-days: 7
 
       - name: Terraform Plan
         id: tf-plan
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: |
           echo "Running Terraform plan..."
           terraform plan -no-color -input=false -out=tfplan
@@ -187,8 +187,8 @@ jobs:
         with:
           name: terraform-plan
           path: |
-            ./python-service-order-service/terraform/tfplan
-            ./python-service-order-service/terraform/plan.json
+            ./terraform/tfplan
+            ./terraform/plan.json
           retention-days: 5
         if: github.event_name == 'pull_request'
         
@@ -199,7 +199,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const planJson = JSON.parse(fs.readFileSync('./python-service-order-service/terraform/plan.json', 'utf8'));
+            const planJson = JSON.parse(fs.readFileSync('./terraform/plan.json', 'utf8'));
             
             let planSummary = '';
             if (planJson.resource_changes) {
@@ -217,7 +217,7 @@ jobs:
               <details><summary>Show details</summary>
               
               \`\`\`
-              ${require('child_process').execSync('cd ./python-service-order-service/terraform && terraform show -no-color tfplan').toString()}
+              ${require('child_process').execSync('cd ./terraform && terraform show -no-color tfplan').toString()}
               \`\`\`
               
               </details>
@@ -269,23 +269,23 @@ jobs:
         run: |
           echo "Uploading Lambda package to S3..."
           LAMBDA_HASH=$(sha256sum lambda_function.zip | cut -d ' ' -f 1)
-          BUCKET_NAME=$(cd python-service-order-service/terraform && terraform output -raw lambda_deployment_bucket 2>/dev/null || echo "srhoton-lambda-deployment")
+          BUCKET_NAME=$(cd terraform && terraform output -raw lambda_deployment_bucket 2>/dev/null || echo "srhoton-lambda-deployment")
           echo "Using S3 bucket: ${BUCKET_NAME}"
           S3_KEY="lambda/service-order-lambda/${LAMBDA_HASH}.zip"
           aws s3 cp lambda_function.zip "s3://${BUCKET_NAME}/${S3_KEY}"
           echo "lambda_s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
 
       - name: Terraform Init
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Terraform Apply
         id: tf-apply
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: |
           echo "Applying Terraform changes..."
           terraform apply -auto-approve tfplan
@@ -293,7 +293,7 @@ jobs:
       - name: Get deployment outputs
         if: success()
         id: terraform-outputs
-        working-directory: ./python-service-order-service/terraform
+        working-directory: ./terraform
         run: |
           echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
           echo "dynamodb_table_name=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_OUTPUT
