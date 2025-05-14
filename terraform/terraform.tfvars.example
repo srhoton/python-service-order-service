@@ -1,0 +1,30 @@
+# Example Terraform variables for the Service Order Lambda
+# Copy this file to 'terraform.tfvars' and modify as needed
+
+# AWS Region and Environment
+aws_region  = "us-east-1"
+environment = "dev"
+service_name = "service-order"
+
+# AppConfig settings
+appconfig_application_name = "service-order-application"
+appconfig_environment_name = "dev"
+appconfig_configuration_profile_name = "service-order-config"
+
+# DynamoDB settings
+# Uncomment and modify to customize the DynamoDB table name (optional)
+# dynamodb_table_name = "custom-service-orders-table"
+dynamodb_billing_mode = "PAY_PER_REQUEST"
+# If using PROVISIONED billing mode, adjust capacity
+# dynamodb_read_capacity = 10
+# dynamodb_write_capacity = 5
+
+# Lambda settings
+lambda_runtime = "python3.13"
+lambda_memory_size = 256
+lambda_timeout = 30
+lambda_log_retention_days = 14
+
+# S3 bucket settings (Optional)
+# Uncomment to specify a custom S3 bucket name for Lambda deployments
+# lambda_deployment_bucket_name = "custom-lambda-deployment-bucket"

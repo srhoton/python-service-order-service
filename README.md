@@ -140,6 +140,64 @@ When deploying to AWS Lambda with Python 3.13:
 - Consider setting reserved concurrency for production workloads
 - The deployment package size limit is 50MB zipped, 250MB unzipped
 
+#### Option 3: Deploy with Terraform
+
+This project includes Terraform configurations to automate the deployment of all necessary AWS resources:
+
+1. Set up AWS credentials:
+   ```bash
+   aws configure
+   ```
+
+2. Initialize Terraform:
+   ```bash
+   cd terraform
+   terraform init
+   ```
+
+3. Review the execution plan:
+   ```bash
+   terraform plan
+   ```
+
+4. Apply the configuration:
+   ```bash
+   terraform apply
+   ```
+
+5. To destroy the resources when no longer needed:
+   ```bash
+   terraform destroy
+   ```
+
+##### Terraform Resources
+
+The Terraform configuration creates the following resources:
+
+- **DynamoDB Table**: For storing service orders with proper indexes
+- **AWS AppConfig**: Application, environment, configuration profile and deployment
+- **S3 Bucket**: For storing Lambda deployment packages
+- **Lambda Function**: With proper IAM roles and permissions
+- **CloudWatch Log Group**: For Lambda function logs
+
+##### Configuration
+
+You can customize the deployment by modifying variables in `terraform/variables.tf` or by creating a `terraform.tfvars` file with your preferred values:
+
+```hcl
+# Example terraform.tfvars
+aws_region = "us-west-2"
+environment = "prod"
+service_name = "service-order"
+dynamodb_billing_mode = "PROVISIONED"
+dynamodb_read_capacity = 10
+dynamodb_write_capacity = 10
+lambda_memory_size = 512
+lambda_timeout = 60
+```
+
+The Terraform state is stored in the S3 bucket `srhoton-tfstate` to enable team collaboration.
+
 
 ## Testing
 
@@ -148,8 +206,6 @@ The project includes comprehensive unit tests for all components. To run the tes
 ```
 # For modular implementation
 pytest
-
-
 ```
 
 To generate coverage reports:
@@ -157,8 +213,53 @@ To generate coverage reports:
 ```
 # For modular implementation
 pytest --cov=src/service_order_lambda --cov-report=term-missing --cov-report=xml
-
-
 ```
 
 **Note:** When testing locally, you may need to configure AWS credentials for tests that interact with AWS services, or use mocking as shown in the test files.
+
+## Infrastructure as Code
+
+### Terraform Configuration
+
+This project uses Terraform to provision and manage the required AWS infrastructure. The Terraform configuration is located in the `terraform/` directory and is structured as follows:
+
+```
+terraform/
+├── providers.tf       # AWS provider configuration and S3 backend
+├── variables.tf       # Input variables
+├── locals.tf          # Local variables and derived values
+├── dynamodb.tf        # DynamoDB table for service orders
+├── appconfig.tf       # AWS AppConfig resources for configuration
+├── s3.tf              # S3 bucket for Lambda deployment packages
+├── lambda.tf          # Lambda function and related resources
+└── outputs.tf         # Output values from the deployment
+```
+
+### Infrastructure Components
+
+The Terraform configuration provisions the following AWS resources:
+
+1. **DynamoDB Table**:
+   - Primary key: PK (service order UUID)
+   - Sort key: SK (customer ID)
+   - Global Secondary Index (GSI): CustomerIndex on the SK field
+   - Point-in-time recovery enabled
+
+2. **AWS AppConfig**:
+   - Application, Environment, and Configuration Profile
+   - Hosted configuration with DynamoDB table name
+   - Deployment strategy for configuration updates
+
+3. **S3 Bucket**:
+   - Secure configuration with encryption and versioning
+   - Used for storing Lambda deployment packages
+
+4. **Lambda Function**:
+   - Python 3.13 runtime
+   - Environment variables for AppConfig integration
+   - IAM role with necessary permissions for DynamoDB and AppConfig
+   - CloudWatch Log Group for monitoring
+
+### Managing Infrastructure
+
+For detailed instructions on deploying and managing the infrastructure, see the deployment section above.
