@@ -8,6 +8,7 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -168,7 +169,7 @@ def mock_aws_clients():
             mock_table.query.side_effect = mock_query
 
             # Return the mock resource regardless of arguments (including region)
-            mock_resource.side_effect = lambda service, region_name=None, **kwargs: mock.MagicMock(Table=lambda name: mock_table)
+            mock_resource.side_effect = lambda service, region_name=None, **kwargs: MagicMock(Table=lambda name: mock_table)
 
             yield mock_table
 
