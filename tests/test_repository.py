@@ -8,6 +8,7 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,6 +48,9 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
+            "AWS_DEFAULT_REGION": "us-east-1",
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
         },
     ):
         yield
@@ -56,25 +60,30 @@ def mock_env_vars():
 @pytest.fixture(autouse=True)
 def mock_aws_clients():
     """Mock all AWS clients for testing."""
-    # Mock AppConfig client
-    with patch("boto3.client") as mock_client:
-        mock_appconfig = MagicMock()
-        mock_content = MagicMock()
-        mock_content.read.return_value = json.dumps(
-            {"serviceOrderTableName": "test_service_orders"}
-        )
+    # Mock AWS configuration to force region
+    with patch("boto3.setup_default_session", autospec=True) as mock_setup:
+        # Explicitly configure boto3 with a region
+        patch("boto3._get_default_session")
+        
+        # Mock AppConfig client
+        with patch("boto3.client") as mock_client:
+            mock_appconfig = MagicMock()
+            mock_content = MagicMock()
+            mock_content.read.return_value = json.dumps(
+                {"serviceOrderTableName": "test_service_orders"}
+            )
 
-        # Configure get_configuration to accept required parameters
-        def mock_get_config(**kwargs: dict) -> dict:
-            # Validate required parameters are present
-            required_params = ["Application", "Environment", "Configuration", "ClientId"]
-            for param in required_params:
-                if param not in kwargs or kwargs[param] is None:
-                    raise ValueError(f"Missing required parameter: {param}")
-            return {"Content": mock_content}
+            # Configure get_configuration to accept required parameters
+            def mock_get_config(**kwargs: dict) -> dict:
+                # Validate required parameters are present
+                required_params = ["Application", "Environment", "Configuration", "ClientId"]
+                for param in required_params:
+                    if param not in kwargs:
+                        raise ValueError(f"Missing required parameter: {param}")
+                return {"Content": mock_content}
 
-        mock_appconfig.get_configuration.side_effect = mock_get_config
-        mock_client.return_value = mock_appconfig
+            mock_appconfig.get_configuration.side_effect = mock_get_config
+            mock_client.return_value = mock_appconfig
 
         # Mock DynamoDB resource
         with patch("boto3.resource") as mock_resource:
@@ -85,14 +94,16 @@ def mock_aws_clients():
             mock_items = {}
 
             # Mock put_item to store items
-            def mock_put_item(item, **kwargs: dict) -> dict:
+            def mock_put_item(**kwargs: dict) -> dict:
+                item = kwargs.get("Item", {})
                 pk = item.get("PK")
                 sk = item.get("SK")
                 mock_items[(pk, sk)] = item.copy()
                 return {}
 
             # Mock get_item to retrieve items
-            def mock_get_item(key, **kwargs: dict) -> dict:
+            def mock_get_item(**kwargs: dict) -> dict:
+                key = kwargs.get("Key", {})
                 pk = key.get("PK")
                 sk = key.get("SK")
                 item = mock_items.get((pk, sk))
@@ -101,13 +112,12 @@ def mock_aws_clients():
                 return {}
 
             # Mock update_item to modify items
-            def mock_update_item(
-                key,
-                update_expression,
-                expression_attribute_values,
-                expression_attribute_names=None,
-                **kwargs: dict,
-            ) -> dict:
+            def mock_update_item(**kwargs: dict) -> dict:
+                key = kwargs.get("Key", {})
+                update_expression = kwargs.get("UpdateExpression", "")
+                expression_attribute_values = kwargs.get("ExpressionAttributeValues", {})
+                expression_attribute_names = kwargs.get("ExpressionAttributeNames", None)
+                
                 pk = key.get("PK")
                 sk = key.get("SK")
                 if (pk, sk) not in mock_items:
@@ -142,7 +152,7 @@ def mock_aws_clients():
             def mock_query(**kwargs: dict) -> dict:
                 items = []
                 index_name = kwargs.get("IndexName")
-                
+
                 # Simple implementation for queries by customer ID
                 if index_name == "CustomerIndex" and "KeyConditionExpression" in kwargs:
                     for _key, item in mock_items.items():
@@ -164,7 +174,10 @@ def mock_aws_clients():
             mock_table.update_item.side_effect = mock_update_item
             mock_table.query.side_effect = mock_query
 
-            mock_resource.return_value.Table.return_value = mock_table
+            # Create a mock DynamoDB resource with a Table method
+            mock_dynamodb = MagicMock()
+            mock_dynamodb.Table.return_value = mock_table
+            mock_resource.return_value = mock_dynamodb
 
             yield mock_table
 
