@@ -1,0 +1,11 @@
+# AWS Lambda dependencies
+boto3>=1.28.62
+pydantic>=2.4.2
+
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+moto>=4.2.6
+mypy>=1.5.1
+ruff>=0.0.292
+types-boto3>=1.0.2
