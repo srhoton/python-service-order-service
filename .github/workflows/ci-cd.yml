@@ -163,11 +163,11 @@ jobs:
           echo "Running pytest with JUnit XML reporting..."
           # Add pytest configuration if needed
           if [ ! -f "pytest.ini" ]; then
-            cat > pytest.ini << 'EOL'
-            [pytest]
-            testpaths = tests
-            python_files = test_*.py
-            EOL
+            cat > pytest.ini << EOF
+[pytest]
+testpaths = tests
+python_files = test_*.py
+EOF
           fi
           
           # Run the tests
