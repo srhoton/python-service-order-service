@@ -10,18 +10,18 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   id-token: write
-  contents: write  # Upgraded to write to allow tagging releases
+  contents: write # Upgraded to write to allow tagging releases
 
 env:
-  PYTHON_VERSION: '3.13'
-  TERRAFORM_VERSION: '1.7.4'
-  AWS_REGION: 'us-east-1'
+  PYTHON_VERSION: "3.13"
+  TERRAFORM_VERSION: "1.7.4"
+  AWS_REGION: "us-east-1"
 
 jobs:
   python-validation:
@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install dependencies
         id: install-deps
@@ -274,12 +274,9 @@ jobs:
           retention-days: 5
         if: github.event_name == 'pull_request'
 
-
-
   deploy-to-aws:
     name: Deploy to AWS
     runs-on: ubuntu-latest
-    environment: production
     needs: [python-validation, terraform-validation]
     if: github.ref == 'refs/heads/main' && success()
     timeout-minutes: 30
