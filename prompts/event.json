@@ -1,0 +1,43 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /customers/{customerId}/service-orders",
+  "rawPath": "/customers/customer123/service-orders",
+  "rawQueryString": "locationId=location456",
+  "headers": {
+    "accept": "*/*",
+    "content-length": "374",
+    "content-type": "application/json",
+    "host": "28zt0t5clg.execute-api.us-west-2.amazonaws.com",
+    "user-agent": "curl/8.7.1",
+    "x-amzn-trace-id": "Root=1-682cb46c-4c20249a0252343315ef133e",
+    "x-forwarded-for": "108.39.232.76",
+    "x-forwarded-port": "443",
+    "x-forwarded-proto": "https"
+  },
+  "queryStringParameters": {
+    "locationId": "location456"
+  },
+  "requestContext": {
+    "accountId": "345594586248",
+    "apiId": "28zt0t5clg",
+    "domainName": "28zt0t5clg.execute-api.us-west-2.amazonaws.com",
+    "domainPrefix": "28zt0t5clg",
+    "http": {
+      "method": "POST",
+      "path": "/customers/customer123/service-orders",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "108.39.232.76",
+      "userAgent": "curl/8.7.1"
+    },
+    "requestId": "K4EhBhScPHcEM9Q=",
+    "routeKey": "POST /customers/{customerId}/service-orders",
+    "stage": "$default",
+    "time": "20/May/2025:16:57:16 +0000",
+    "timeEpoch": 1747760236561
+  },
+  "pathParameters": {
+    "customerId": "customer123"
+  },
+  "body": "{\n    \"unit_id\": \"9c0229ca-010e-448c-8430-173601999470\",\n    \"action_id\": \"dc383e10-ff7a-4009-8173-cc4b709ac756\",\n    \"service_date\": \"2023-07-15\",\n    \"service_time\": \"14:30:00\",\n    \"service_duration\": 120,\n    \"service_status\": \"scheduled\",\n    \"employee_id\": \"6c8234c6-14b2-4fb8-87ad-4889553c1126\",\n    \"service_notes\": \"Initial service request for HVAC maintenance\"\n  }",
+  "isBase64Encoded": false
+}

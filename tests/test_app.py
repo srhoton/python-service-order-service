@@ -27,7 +27,7 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
-            "AWS_DEFAULT_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-west-2",
             "AWS_ACCESS_KEY_ID": "test",
             "AWS_SECRET_ACCESS_KEY": "test",
         },
@@ -40,10 +40,10 @@ def mock_env_vars():
 def mock_aws_services():
     """Mock all AWS services for testing."""
     # Mock AWS configuration to force region
-    with mock.patch("boto3.setup_default_session", autospec=True) as mock_setup:
+    with mock.patch("boto3.setup_default_session", autospec=True):
         # Explicitly configure boto3 with a region
-        mock.patch("boto3._get_default_session") 
-        
+        mock.patch("boto3._get_default_session")
+
         # Mock AppConfig client
         with mock.patch("boto3.client") as mock_client:
             mock_app_config = mock.MagicMock()
@@ -53,20 +53,20 @@ def mock_aws_services():
             )
             mock_app_config.get_configuration.return_value = {"Content": mock_content}
             mock_client.return_value = mock_app_config
-            
+
             # Mock DynamoDB
             with mock.patch("boto3.resource") as mock_resource:
                 mock_table = mock.MagicMock()
                 mock_dynamodb = mock.MagicMock()
                 mock_dynamodb.Table.return_value = mock_table
                 mock_resource.return_value = mock_dynamodb
-                
+
                 # Set return values for mock table methods
                 mock_table.get_item.return_value = {}
                 mock_table.put_item.return_value = {}
                 mock_table.update_item.return_value = {}
                 mock_table.query.return_value = {"Items": []}
-                
+
                 yield mock_table
 
 

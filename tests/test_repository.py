@@ -8,7 +8,6 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
-from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,7 +47,7 @@ def mock_env_vars():
             "APPCONFIG_ENVIRONMENT_ID": "test-env-id",
             "APPCONFIG_CONFIGURATION_PROFILE_ID": "test-profile-id",
             "LOG_LEVEL": "INFO",
-            "AWS_DEFAULT_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-west-2",
             "AWS_ACCESS_KEY_ID": "test",
             "AWS_SECRET_ACCESS_KEY": "test",
         },
@@ -61,10 +60,10 @@ def mock_env_vars():
 def mock_aws_clients():
     """Mock all AWS clients for testing."""
     # Mock AWS configuration to force region
-    with patch("boto3.setup_default_session", autospec=True) as mock_setup:
+    with patch("boto3.setup_default_session", autospec=True):
         # Explicitly configure boto3 with a region
         patch("boto3._get_default_session")
-        
+
         # Mock AppConfig client
         with patch("boto3.client") as mock_client:
             mock_appconfig = MagicMock()
@@ -117,7 +116,7 @@ def mock_aws_clients():
                 update_expression = kwargs.get("UpdateExpression", "")
                 expression_attribute_values = kwargs.get("ExpressionAttributeValues", {})
                 expression_attribute_names = kwargs.get("ExpressionAttributeNames", None)
-                
+
                 pk = key.get("PK")
                 sk = key.get("SK")
                 if (pk, sk) not in mock_items:
@@ -126,24 +125,27 @@ def mock_aws_clients():
                 item = mock_items[(pk, sk)].copy()
 
                 # Handle simple SET expressions
-                if "SET" in update_expression:
-                    # Split each assignment in the SET expression
-                    parts = update_expression.split("SET ")[1].split()
-                    i = 0
-                    while i < len(parts):
-                        if i + 2 < len(parts) and parts[i + 1] == "=":
+                if isinstance(update_expression, str) and "SET" in update_expression:
+                    # Get the part after SET
+                    expr_body = update_expression.split("SET ")[1]
+
+                    # Split by commas to get individual assignments
+                    assignments = expr_body.split(", ")
+
+                    for assignment in assignments:
+                        # Split the assignment into attribute and value
+                        parts = assignment.split(" = ")
+                        if len(parts) == 2:
+                            attr_name = parts[0].strip()
+                            val_ref = parts[1].strip()
+
                             # Handle attribute names with # prefix
-                            attr_name = parts[i]
                             if attr_name.startswith("#") and expression_attribute_names:
                                 attr_name = expression_attribute_names.get(attr_name, attr_name)
+
                             # Handle value references with : prefix
-                            val_ref = parts[i+2]
                             if val_ref in expression_attribute_values:
                                 item[attr_name] = expression_attribute_values[val_ref]
-                            i += 3
-                        else:
-                            # Skip other parts we don't understand
-                            i += 1
 
                 mock_items[(pk, sk)] = item
                 return {"Attributes": item}

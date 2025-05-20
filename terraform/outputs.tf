@@ -32,21 +32,43 @@ output "lambda_function" {
   }
 }
 
-# AppConfig outputs
-output "appconfig" {
-  description = "Information about the AppConfig configuration"
+output "lambda_function_name" {
+  description = "Name of the Lambda function"
+  value       = aws_lambda_function.service_order.function_name
+}
+
+output "lambda_function_arn" {
+  description = "ARN of the Lambda function"
+  value       = aws_lambda_function.service_order.arn
+}
+
+output "lambda_invoke_arn" {
+  description = "Invoke ARN of the Lambda function"
+  value       = aws_lambda_function.service_order.invoke_arn
+}
+
+# API Gateway outputs
+output "api_gateway" {
+  description = "Information about the API Gateway endpoints"
   value = {
-    application_id    = aws_appconfig_application.service_order.id
-    environment_id    = aws_appconfig_environment.service_order.environment_id
-    config_profile_id = aws_appconfig_configuration_profile.service_order.configuration_profile_id
+    endpoint      = aws_apigatewayv2_api.service_order_api.api_endpoint
+    id            = aws_apigatewayv2_api.service_order_api.id
+    stage_name    = aws_apigatewayv2_stage.default.name
+    execution_arn = aws_apigatewayv2_api.service_order_api.execution_arn
   }
 }
 
-# S3 outputs
+# AppConfig outputs removed - using environment variables instead
+
+# S3 Bucket outputs
 output "lambda_deployment_bucket" {
-  description = "Information about the Lambda deployment S3 bucket"
-  value = {
-    name = aws_s3_bucket.lambda_deployment.id
-    arn  = aws_s3_bucket.lambda_deployment.arn
-  }
+  description = "Name of the S3 bucket used for Lambda deployment packages"
+  value       = aws_s3_bucket.lambda_deployment.bucket
 }
+
+output "lambda_deployment_bucket_arn" {
+  description = "ARN of the S3 bucket used for Lambda deployment packages"
+  value       = aws_s3_bucket.lambda_deployment.arn
+}
+
+# Deployment outputs completed

@@ -1,0 +1,40 @@
+# Ruff Configuration
+line-length = 100
+target-version = "py313"
+
+# Enable various rule sets
+[lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # Pyflakes
+    "I",  # isort
+    "N",  # pep8-naming
+    "D",  # pydocstyle
+    "ANN", # flake8-annotations
+    "S",  # flake8-bandit
+    "C4", # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
+    "RUF", # Ruff-specific rules
+]
+
+# Ignore Any annotations globally
+ignore = ["ANN401"]
+
+# Per-file ignore configurations
+[lint.per-file-ignores]
+"src/service_order_lambda/models.py" = ["N805"]  # Pydantic field_validator methods need cls not self
+"tests/*.py" = ["S101", "ANN001", "ANN201", "ANN202", "E501", "I001", "W293"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+known-first-party = ["service_order_lambda"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

@@ -1,109 +1,49 @@
 """Configuration module for the Service Order Lambda.
 
-This module handles configuration loading and management,
-including retrieving values from AWS AppConfig.
+This module handles configuration loading and management through environment variables.
 """
 
-import json
 import logging
 import os
-from typing import Any, Optional
-
-import boto3
-from botocore.exceptions import ClientError
+from typing import Final, Optional
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
 
 class Config:
     """Configuration manager for the service order Lambda.
 
-    Handles retrieving configuration values from AWS AppConfig
-    and environment variables.
+    Handles retrieving configuration values from environment variables.
     """
 
     def __init__(self) -> None:
         """Initialize the configuration manager."""
-        self._app_config_client = None
         self._table_name: Optional[str] = None
-
-        # Get required environment variables
-        self.application_id = os.environ.get("APPCONFIG_APPLICATION_ID")
-        self.environment_id = os.environ.get("APPCONFIG_ENVIRONMENT_ID")
-        self.configuration_profile_id = os.environ.get("APPCONFIG_CONFIGURATION_PROFILE_ID")
-
-        if not all([self.application_id, self.environment_id, self.configuration_profile_id]):
-            logger.warning("Missing required AppConfig environment variables")
-            
-    @property
-    def app_config_client(self):
-        """Lazy-load the AppConfig client.
-        
-        Returns:
-            The boto3 AppConfig client
-        """
-        if self._app_config_client is None:
-            self._app_config_client = boto3.client("appconfig", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
-        return self._app_config_client
 
     @property
     def service_order_table_name(self) -> str:
-        """Get the service order DynamoDB table name from AppConfig.
+        """Get the service order DynamoDB table name from environment variable.
 
         Returns:
             The DynamoDB table name
 
         Raises:
-            RuntimeError: If the table name cannot be retrieved
+            RuntimeError: If the table name is not configured
         """
         if self._table_name is None:
-            try:
-                response = self.app_config_client.get_configuration(
-                    Application=self.application_id,
-                    Environment=self.environment_id,
-                    Configuration=self.configuration_profile_id,
-                    ClientId="service-order-lambda",
-                )
+            self._table_name = os.environ.get("DYNAMODB_TABLE_NAME")
 
-                config_data = json.loads(response["Content"].read())
-                self._table_name = config_data.get("serviceOrderTableName")
+            if not self._table_name:
+                error_msg: str = "DYNAMODB_TABLE_NAME environment variable not set"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
 
-                if not self._table_name:
-                    raise ValueError("serviceOrderTableName not found in AppConfig")
-
-                logger.info(f"Retrieved table name from AppConfig: {self._table_name}")
-            except (ClientError, ValueError) as e:
-                logger.error(f"Failed to retrieve table name from AppConfig: {e!s}")
-                raise RuntimeError(f"Configuration error: {e!s}") from e
+            logger.info(f"Using table name from environment: {self._table_name}")
 
         return self._table_name
 
-    def get_config_value(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value from AppConfig.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value to return if key is not found
-
-        Returns:
-            The configuration value or default if not found
-        """
-        try:
-            response = self.app_config_client.get_configuration(
-                Application=self.application_id,
-                Environment=self.environment_id,
-                Configuration=self.configuration_profile_id,
-                ClientId="service-order-lambda",
-            )
-
-            config_data = json.loads(response["Content"].read())
-            return config_data.get(key, default)
-        except Exception as e:
-            logger.warning(f"Failed to retrieve config value {key}: {e!s}")
-            return default
-
 
 # Singleton instance
-config = Config()
+config: Final[Config] = Config()

@@ -7,11 +7,15 @@ It provides CRUD operations for service order management.
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
+
+# Import type-only dependencies
+if TYPE_CHECKING:
+    pass  # Type checking imports would go here if needed
 
 from .config import config
 from .models import (
@@ -21,7 +25,7 @@ from .models import (
 )
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
@@ -30,8 +34,9 @@ class ServiceOrderRepository:
 
     def __init__(self) -> None:
         """Initialize the repository with DynamoDB client."""
-        self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(config.service_order_table_name)
+        session: boto3.Session = boto3.Session(region_name="us-west-2")
+        self.dynamodb = session.resource("dynamodb")  # type: ignore[assignment]
+        self.table = self.dynamodb.Table(config.service_order_table_name)  # type: ignore[attr-defined]
 
     def create_service_order(
         self, order_id: str, customer_id: str, service_order: ServiceOrderCreate
@@ -49,10 +54,10 @@ class ServiceOrderRepository:
         Raises:
             ClientError: If there's an issue with the DynamoDB operation
         """
-        timestamp = datetime.now(UTC).isoformat()
+        timestamp: str = datetime.now(UTC).isoformat()
 
         # Create DynamoDB item from the service order model
-        db_item = DynamoDBServiceOrder.from_service_order(
+        db_item: DynamoDBServiceOrder = DynamoDBServiceOrder.from_service_order(
             order_id=uuid.UUID(order_id),
             customer_id=customer_id,
             service_order=service_order,
@@ -60,7 +65,7 @@ class ServiceOrderRepository:
         )
 
         # Convert to dict for DynamoDB
-        item_dict = db_item.model_dump(exclude_none=True)
+        item_dict: Dict[str, Any] = db_item.to_dict(exclude_none=True)
 
         try:
             # Add to DynamoDB
@@ -71,7 +76,7 @@ class ServiceOrderRepository:
             logger.error(f"Failed to create service order: {e!s}")
             raise
 
-    def get_service_order(self, order_id: str, customer_id: str) -> Optional[Dict]:
+    def get_service_order(self, order_id: str, customer_id: str) -> Optional[Dict[str, Any]]:
         """Get a service order by ID and customer ID.
 
         Args:
@@ -85,13 +90,13 @@ class ServiceOrderRepository:
             ClientError: If there's an issue with the DynamoDB operation
         """
         try:
-            response = self.table.get_item(
+            response: Dict[str, Any] = self.table.get_item(
                 Key={
                     "PK": order_id,
                     "SK": customer_id,
                 }
             )
-            item = response.get("Item")
+            item: Optional[Dict[str, Any]] = response.get("Item")
 
             if not item:
                 logger.info(f"Service order {order_id} for customer {customer_id} not found")
@@ -105,7 +110,7 @@ class ServiceOrderRepository:
 
     def update_service_order(
         self, order_id: str, customer_id: str, service_order: ServiceOrderUpdate
-    ) -> Optional[Dict]:
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing service order in DynamoDB.
 
         Args:
@@ -120,19 +125,19 @@ class ServiceOrderRepository:
             ClientError: If there's an issue with the DynamoDB operation
         """
         # First check if the item exists
-        existing_item = self.get_service_order(order_id, customer_id)
+        existing_item: Optional[Dict[str, Any]] = self.get_service_order(order_id, customer_id)
         if not existing_item:
             return None
 
-        timestamp = datetime.now(UTC).isoformat()
+        timestamp: str = datetime.now(UTC).isoformat()
 
         # Prepare update expression parts
-        update_expr_parts = ["SET updated_at = :updated_at"]
-        expr_attr_values = {":updated_at": timestamp}
-        expr_attr_names = {}
+        update_expr_parts: List[str] = ["updated_at = :updated_at"]
+        expr_attr_values: Dict[str, Any] = {":updated_at": timestamp}
+        expr_attr_names: Dict[str, str] = {}
 
         # Add fields from the service order model to the update expression
-        model_dict = service_order.model_dump(exclude_unset=True, exclude_none=True)
+        model_dict: Dict[str, Any] = service_order.to_dict(exclude_none=True)
 
         # Map model field names to DynamoDB attribute names
         field_mapping = {
@@ -157,17 +162,14 @@ class ServiceOrderRepository:
                 update_expr_parts.append(f"{expr_name} = {expr_val}")
                 expr_attr_names[expr_name] = db_field
 
-                # Convert UUIDs to strings for DynamoDB
-                if field in ["unit_id", "action_id", "employee_id"] and value is not None:
-                    expr_attr_values[expr_val] = str(value)
-                else:
-                    expr_attr_values[expr_val] = value
+                # UUIDs are already converted to strings in the to_dict method
+                expr_attr_values[expr_val] = value
 
         # Combine all parts to form the final update expression
-        update_expression = " ".join(update_expr_parts)
+        update_expression: str = "SET " + ", ".join(update_expr_parts)
 
         try:
-            response = self.table.update_item(
+            response: Dict[str, Any] = self.table.update_item(
                 Key={
                     "PK": order_id,
                     "SK": customer_id,
@@ -178,7 +180,7 @@ class ServiceOrderRepository:
                 ReturnValues="ALL_NEW",
             )
 
-            updated_item = response.get("Attributes", {})
+            updated_item: Dict[str, Any] = response.get("Attributes", {})
             logger.info(f"Updated service order {order_id} for customer {customer_id}")
             return dict(updated_item)
         except ClientError as e:
@@ -226,7 +228,7 @@ class ServiceOrderRepository:
 
     def query_service_orders_by_customer(
         self, customer_id: str, location_id: Optional[str] = None
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """Query service orders by customer ID and optionally location ID.
 
         Args:
@@ -241,7 +243,7 @@ class ServiceOrderRepository:
         """
         try:
             # Base query parameters
-            query_params = {
+            query_params: Dict[str, Any] = {
                 "IndexName": "CustomerIndex",  # Assumes a GSI on SK (customer_id)
                 "KeyConditionExpression": Key("SK").eq(customer_id),
             }
@@ -250,8 +252,8 @@ class ServiceOrderRepository:
             if location_id:
                 query_params["FilterExpression"] = Attr("location_id").eq(location_id)
 
-            response = self.table.query(**query_params)
-            items = response.get("Items", [])
+            response: Dict[str, Any] = self.table.query(**query_params)
+            items: List[Dict[str, Any]] = response.get("Items", [])
 
             # Handle pagination if there are more results
             while "LastEvaluatedKey" in response:

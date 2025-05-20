@@ -21,7 +21,7 @@ permissions:
 env:
   PYTHON_VERSION: "3.13"
   TERRAFORM_VERSION: "1.7.4"
-  AWS_REGION: "us-east-1"
+  AWS_REGION: "us-west-2"
 
 jobs:
   python-validation:
@@ -308,10 +308,14 @@ jobs:
         id: upload-lambda
         run: |
           echo "Uploading Lambda package to S3..."
-          LAMBDA_HASH=$(sha256sum lambda_function.zip | cut -d ' ' -f 1)
           BUCKET_NAME=$(cd terraform && terraform output -raw lambda_deployment_bucket 2>/dev/null || echo "srhoton-lambda-deployment")
           echo "Using S3 bucket: ${BUCKET_NAME}"
-          S3_KEY="lambda/service-order-lambda/${LAMBDA_HASH}.zip"
+          # Use fixed key name to match terraform configuration
+          S3_KEY="lambda/service-order-lambda/function.zip"
+          # Add content hash to the log for debugging
+          CONTENT_HASH=$(sha256sum lambda_function.zip | cut -d ' ' -f 1)
+          echo "Lambda package hash: ${CONTENT_HASH}"
+          # Upload to S3
           aws s3 cp lambda_function.zip "s3://${BUCKET_NAME}/${S3_KEY}"
           echo "lambda_s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
 
@@ -321,13 +325,18 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ./terraform
-        run: terraform plan -no-color -input=false -out=tfplan
+        run: |
+          echo "Adding build marker for Lambda function..."
+          touch lambda_function.zip
+          terraform plan -no-color -input=false -out=tfplan
 
       - name: Terraform Apply
         id: tf-apply
         working-directory: ./terraform
         run: |
           echo "Applying Terraform changes..."
+          # Create empty Lambda zip if it doesn't exist to satisfy terraform
+          [[ -f lambda_function.zip ]] || touch lambda_function.zip
           terraform apply -auto-approve tfplan
 
       - name: Get deployment outputs

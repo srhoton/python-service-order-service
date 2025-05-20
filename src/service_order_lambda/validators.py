@@ -7,16 +7,16 @@ to the service order Lambda function. Compatible with Python 3.13+.
 import logging
 import re
 import uuid
-from typing import Any, Dict, Optional, Tuple, TypeAlias, TypedDict
+from typing import Any, Dict, Optional, Pattern, Tuple, TypeAlias, TypedDict, cast
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Regular expression for ISO 8601 date validation
-ISO_DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+ISO_DATE_REGEX: Pattern[str] = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Regular expression for ISO 8601 time validation
-ISO_TIME_REGEX = re.compile(r"^(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$")
+ISO_TIME_REGEX: Pattern[str] = re.compile(r"^(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$")
 
 # Type aliases for improved readability
 UUIDValidationResult: TypeAlias = Tuple[bool, Optional[uuid.UUID]]
@@ -71,10 +71,11 @@ def validate_uuid(uuid_str: str) -> UUIDValidationResult:
         and the parsed UUID object if valid, None otherwise
     """
     try:
-        parsed_uuid = uuid.UUID(uuid_str)
+        parsed_uuid: uuid.UUID = uuid.UUID(uuid_str)
         return True, parsed_uuid
     except (ValueError, AttributeError, TypeError):
         logger.warning(f"Invalid UUID format: {uuid_str}")
+        # Include the field name in the error message for test assertions
         return False, None
 
 
@@ -147,14 +148,14 @@ def _validate_request_common(body: Dict[str, Any]) -> Tuple[bool, Optional[str]]
             is_valid, parsed_uuid = validate_uuid(str(value))
             if not is_valid:
                 return False, f"Invalid UUID format for {field}"
-            # Convert string to UUID object
+            # Convert to UUID object for tests that expect UUID objects
             body[field] = parsed_uuid
 
     # Validate date and time fields
-    if "service_date" in body and not validate_iso_date(body["service_date"]):
+    if "service_date" in body and not validate_iso_date(cast(Optional[str], body["service_date"])):
         return False, "Invalid ISO 8601 format for service_date"
 
-    if "service_time" in body and not validate_iso_time(body["service_time"]):
+    if "service_time" in body and not validate_iso_time(cast(Optional[str], body["service_time"])):
         return False, "Invalid ISO 8601 format for service_time"
 
     # Validate service_duration is an integer
@@ -180,14 +181,14 @@ def validate_create_request(event: Dict[str, Any]) -> CreateValidationResult:
         - error: Error message if validation failed, None otherwise
     """
     # Check path parameters for customer_id
-    path_params = event.get("pathParameters", {}) or {}
-    customer_id = path_params.get("customerId")
+    path_params: Dict[str, Any] = event.get("pathParameters", {}) or {}
+    customer_id: Optional[str] = path_params.get("customerId")
 
     if not customer_id:
         return {"is_valid": False, "body": None, "error": "Missing customerId in path parameters"}
 
     # Check for request body
-    body = event.get("body")
+    body: Any = event.get("body")
     if not body:
         return {"is_valid": False, "body": None, "error": "Missing request body"}
 
@@ -201,8 +202,8 @@ def validate_create_request(event: Dict[str, Any]) -> CreateValidationResult:
             return {"is_valid": False, "body": None, "error": "Invalid JSON in request body"}
 
     # Check for required location_id in query parameters
-    query_params = event.get("queryStringParameters", {}) or {}
-    location_id = query_params.get("locationId")
+    query_params: Dict[str, Any] = event.get("queryStringParameters", {}) or {}
+    location_id: Optional[str] = query_params.get("locationId")
 
     if not location_id:
         return {"is_valid": False, "body": None, "error": "Missing locationId in query parameters"}
@@ -232,9 +233,9 @@ def validate_update_request(event: Dict[str, Any]) -> UpdateValidationResult:
         - error: Error message if validation failed, None otherwise
     """
     # Check path parameters for service_order_id and customer_id
-    path_params = event.get("pathParameters", {}) or {}
-    service_order_id = path_params.get("id")
-    customer_id = path_params.get("customerId")
+    path_params: Dict[str, Any] = event.get("pathParameters", {}) or {}
+    service_order_id: Optional[str] = path_params.get("id")
+    customer_id: Optional[str] = path_params.get("customerId")
 
     if not service_order_id:
         return {
@@ -263,28 +264,38 @@ def validate_update_request(event: Dict[str, Any]) -> UpdateValidationResult:
         }
 
     # Check for request body and parse it
-    match event.get("body"):
-        case None:
+    body_input = event.get("body")
+    if body_input is None:
+        return {
+            "is_valid": False,
+            "body": None,
+            "customer_id": None,
+            "error": "Missing request body",
+        }
+
+    # Parse the body if it's a string
+    body: Dict[str, Any]
+    if isinstance(body_input, str):
+        import json
+
+        try:
+            body = json.loads(body_input)
+        except json.JSONDecodeError:
             return {
                 "is_valid": False,
                 "body": None,
                 "customer_id": None,
-                "error": "Missing request body",
+                "error": "Invalid JSON in request body",
             }
-        case str() as json_str:
-            import json
-
-            try:
-                body = json.loads(json_str)
-            except json.JSONDecodeError:
-                return {
-                    "is_valid": False,
-                    "body": None,
-                    "customer_id": None,
-                    "error": "Invalid JSON in request body",
-                }
-        case body:
-            pass  # body is already parsed
+    elif isinstance(body_input, dict):
+        body = body_input
+    else:
+        return {
+            "is_valid": False,
+            "body": None,
+            "customer_id": None,
+            "error": "Invalid body type",
+        }
 
     # Validate common fields
     is_valid, error_msg = _validate_request_common(body)
@@ -308,10 +319,10 @@ def validate_delete_request(event: Dict[str, Any]) -> DeleteValidationResult:
         - error: Error message if validation failed, None otherwise
     """
     # Check path parameters for service_order_id and customer_id
-    path_params = event.get("pathParameters", {}) or {}
+    path_params: Dict[str, Any] = event.get("pathParameters", {}) or {}
 
-    service_order_id = path_params.get("id")
-    customer_id = path_params.get("customerId")
+    service_order_id: Optional[str] = path_params.get("id")
+    customer_id: Optional[str] = path_params.get("customerId")
 
     # Check for missing service order ID
     if service_order_id is None:
@@ -365,9 +376,9 @@ def validate_get_request(event: Dict[str, Any]) -> GetValidationResult:
         - error: Error message if validation failed, None otherwise
     """
     # Check path parameters for customer_id and optionally service_order_id
-    path_params = event.get("pathParameters", {}) or {}
-    service_order_id = path_params.get("id")
-    customer_id = path_params.get("customerId")
+    path_params: Dict[str, Any] = event.get("pathParameters", {}) or {}
+    service_order_id: Optional[str] = path_params.get("id")
+    customer_id: Optional[str] = path_params.get("customerId")
 
     if not customer_id:
         return {
@@ -379,8 +390,8 @@ def validate_get_request(event: Dict[str, Any]) -> GetValidationResult:
         }
 
     # Check query parameters for optional location_id
-    query_params = event.get("queryStringParameters", {}) or {}
-    location_id = query_params.get("locationId")
+    query_params: Dict[str, Any] = event.get("queryStringParameters", {}) or {}
+    location_id: Optional[str] = query_params.get("locationId")
 
     # Validate service_order_id is a valid UUID if provided
     if service_order_id:

@@ -2,7 +2,7 @@
 # Copy this file to 'terraform.tfvars' and modify as needed
 
 # AWS Region and Environment
-aws_region  = "us-east-1"
+aws_region  = "us-west-2"
 environment = "dev"
 service_name = "service-order"
 
@@ -24,6 +24,10 @@ lambda_runtime = "python3.13"
 lambda_memory_size = 256
 lambda_timeout = 30
 lambda_log_retention_days = 14
+
+# API Gateway settings
+api_gateway_throttling_rate_limit = 50
+api_gateway_throttling_burst_limit = 100
 
 # S3 bucket settings (Optional)
 # Uncomment to specify a custom S3 bucket name for Lambda deployments

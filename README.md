@@ -176,8 +176,7 @@ The Terraform configuration creates the following resources:
 
 - **DynamoDB Table**: For storing service orders with proper indexes
 - **AWS AppConfig**: Application, environment, configuration profile and deployment
-- **S3 Bucket**: For storing Lambda deployment packages
-- **Lambda Function**: With proper IAM roles and permissions
+- **Lambda Function**: With proper IAM roles and permissions, built and deployed directly
 - **CloudWatch Log Group**: For Lambda function logs
 
 ##### Configuration
@@ -197,6 +196,19 @@ lambda_timeout = 60
 ```
 
 The Terraform state is stored in the S3 bucket `srhoton-tfstate` to enable team collaboration.
+
+##### Lambda Build Process
+
+The Terraform configuration includes a built-in mechanism to:
+
+1. **Automatically build** the Lambda deployment package
+2. **Install dependencies** from requirements.txt
+3. **Create a zip file** containing the code and dependencies
+4. **Upload the package to an S3 bucket** with a content-based hash for versioning
+5. **Deploy the Lambda function** using the S3 object as its source
+6. **Track code changes** using SHA256 hash to trigger redeployments only when necessary
+
+This approach enhances the deployment process by leveraging S3 for better scalability, allowing larger deployment packages, and enabling better integration with CI/CD pipelines.
 
 
 ## Testing

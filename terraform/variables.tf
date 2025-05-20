@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "The AWS region to deploy resources"
   type        = string
-  default     = "us-east-1"
+  default     = "us-west-2"
 }
 
 variable "environment" {
@@ -16,24 +16,9 @@ variable "service_name" {
   default     = "service-order"
 }
 
-# AppConfig variables
-variable "appconfig_application_name" {
-  description = "Name of the AppConfig application"
-  type        = string
-  default     = "service-order-application"
-}
+# AppConfig variables have been removed
+# The Lambda function now uses environment variables directly instead of AppConfig
 
-variable "appconfig_environment_name" {
-  description = "Name of the AppConfig environment"
-  type        = string
-  default     = "default"
-}
-
-variable "appconfig_configuration_profile_name" {
-  description = "Name of the AppConfig configuration profile"
-  type        = string
-  default     = "service-order-config"
-}
 
 # DynamoDB variables
 variable "dynamodb_table_name" {
@@ -101,9 +86,36 @@ variable "lambda_log_retention_days" {
   }
 }
 
-# S3 variables
+# API Gateway variables
+variable "api_gateway_throttling_rate_limit" {
+  description = "API Gateway rate limit (requests per second)"
+  type        = number
+  default     = 50
+  validation {
+    condition     = var.api_gateway_throttling_rate_limit > 0
+    error_message = "API Gateway throttling rate limit must be greater than 0."
+  }
+}
+
+variable "api_gateway_throttling_burst_limit" {
+  description = "API Gateway burst limit (concurrent requests)"
+  type        = number
+  default     = 100
+  validation {
+    condition     = var.api_gateway_throttling_burst_limit > 0
+    error_message = "API Gateway throttling burst limit must be greater than 0."
+  }
+}
+
+# S3 bucket variables for Lambda deployment
 variable "lambda_deployment_bucket_name" {
-  description = "Name of the S3 bucket to store Lambda deployment packages"
+  description = "Name of the S3 bucket for Lambda deployment packages (optional, will be generated if not provided)"
   type        = string
   default     = null
+}
+
+variable "lambda_s3_key_prefix" {
+  description = "Prefix for Lambda deployment package S3 keys"
+  type        = string
+  default     = "lambda/service-order-lambda"
 }
